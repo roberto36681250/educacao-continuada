@@ -39,3 +39,7 @@ prisma/*.db-journal
 # Misc
 .turbo/
 *.tsbuildinfo
+
+# Claude Code
+.claude/settings.local.json
+.claude/*.local.json
