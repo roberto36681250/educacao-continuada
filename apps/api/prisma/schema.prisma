@@ -1,0 +1,377 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ============================================
+// ENTIDADES ORGANIZACIONAIS
+// ============================================
+
+model Institute {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  hospitals Hospital[]
+  users     User[]
+  courses   Course[]
+
+  @@map("institutes")
+}
+
+model Hospital {
+  id          String   @id @default(cuid())
+  name        String
+  instituteId String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  institute Institute @relation(fields: [instituteId], references: [id])
+  units     Unit[]
+
+  @@map("hospitals")
+}
+
+model Unit {
+  id         String   @id @default(cuid())
+  name       String
+  hospitalId String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  hospital    Hospital             @relation(fields: [hospitalId], references: [id])
+  assignments UserUnitAssignment[]
+
+  @@map("units")
+}
+
+// ============================================
+// USUÁRIOS E LOTAÇÃO
+// ============================================
+
+model User {
+  id                   String    @id @default(cuid())
+  email                String    @unique
+  name                 String
+  cpf                  String    @unique
+  phone                String?
+  profession           String    // Ex: "Médico", "Enfermeiro", "Fisioterapeuta"
+  professionalRegister String?   // CRM, COREN, CREFITO, etc.
+  role                 UserRole  @default(USER)
+  instituteId          String
+  isActive             Boolean   @default(true)
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  institute       Institute            @relation(fields: [instituteId], references: [id])
+  assignments     UserUnitAssignment[]
+  videoProgress   VideoProgress[]
+  quizAttempts    QuizAttempt[]
+  competencies    UserCompetency[]
+  tickets         Ticket[]
+  auditLogs       AuditLog[]
+
+  @@map("users")
+}
+
+enum UserRole {
+  ADMIN_MASTER
+  ADMIN
+  MANAGER
+  USER
+}
+
+model UserUnitAssignment {
+  id        String    @id @default(cuid())
+  userId    String
+  unitId    String
+  startAt   DateTime  @default(now())
+  endAt     DateTime?
+  isPrimary Boolean   @default(false)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+  unit Unit @relation(fields: [unitId], references: [id])
+
+  @@map("user_unit_assignments")
+}
+
+// ============================================
+// CONTEÚDO E APRENDIZADO
+// ============================================
+
+model Course {
+  id            String        @id @default(cuid())
+  title         String
+  description   String?
+  instituteId   String
+  status        ContentStatus @default(DRAFT)
+  sortOrder     Int           @default(0)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  institute   Institute    @relation(fields: [instituteId], references: [id])
+  modules     Module[]
+  competencies Competency[]
+  tickets     Ticket[]
+
+  @@map("courses")
+}
+
+model Module {
+  id        String        @id @default(cuid())
+  title     String
+  description String?
+  courseId  String
+  status    ContentStatus @default(DRAFT)
+  sortOrder Int           @default(0)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  course  Course   @relation(fields: [courseId], references: [id])
+  lessons Lesson[]
+  tickets Ticket[]
+
+  @@map("modules")
+}
+
+model Lesson {
+  id              String        @id @default(cuid())
+  title           String
+  description     String?
+  moduleId        String
+  youtubeVideoId  String?       // ID do vídeo no YouTube (não listado)
+  durationSeconds Int           @default(0) // Duração do vídeo em segundos
+  minWatchPercent Int           @default(90) // % mínimo para liberar quiz
+  status          ContentStatus @default(DRAFT)
+  sortOrder       Int           @default(0)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  module        Module          @relation(fields: [moduleId], references: [id])
+  quiz          Quiz?
+  videoProgress VideoProgress[]
+  tickets       Ticket[]
+
+  @@map("lessons")
+}
+
+enum ContentStatus {
+  DRAFT
+  REVIEWED
+  APPROVED
+  PUBLISHED
+  ARCHIVED
+}
+
+model VideoProgress {
+  id             String   @id @default(cuid())
+  userId         String
+  lessonId       String
+  watchedSeconds Int      @default(0)
+  watchedPct     Int      @default(0) // 0-100
+  completed      Boolean  @default(false)
+  lastWatchedAt  DateTime @default(now())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user   User   @relation(fields: [userId], references: [id])
+  lesson Lesson @relation(fields: [lessonId], references: [id])
+
+  @@unique([userId, lessonId])
+  @@map("video_progress")
+}
+
+// ============================================
+// QUIZ E AVALIAÇÃO
+// ============================================
+
+model Quiz {
+  id        String   @id @default(cuid())
+  lessonId  String   @unique
+  title     String?
+  minScore  Int      @default(70) // Nota mínima para aprovação
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  lesson    Lesson       @relation(fields: [lessonId], references: [id])
+  questions Question[]
+  attempts  QuizAttempt[]
+
+  @@map("quizzes")
+}
+
+model Question {
+  id                    String   @id @default(cuid())
+  quizId                String
+  text                  String
+  isCase                Boolean  @default(false) // É caso clínico?
+  justificationRequired Boolean  @default(false) // Exige justificativa?
+  sortOrder             Int      @default(0)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  quiz    Quiz                @relation(fields: [quizId], references: [id])
+  options Option[]
+  answers QuestionAnswer[]
+
+  @@map("questions")
+}
+
+model Option {
+  id         String   @id @default(cuid())
+  questionId String
+  text       String
+  isCorrect  Boolean  @default(false)
+  sortOrder  Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  question Question         @relation(fields: [questionId], references: [id])
+  answers  QuestionAnswer[]
+
+  @@map("options")
+}
+
+model QuizAttempt {
+  id            String            @id @default(cuid())
+  userId        String
+  quizId        String
+  attemptNumber Int               // Tentativa dentro do ciclo (1, 2 ou 3)
+  cycleNumber   Int               @default(1) // Ciclo de tentativas
+  score         Int?              // Nota obtida (0-100)
+  status        QuizAttemptStatus
+  startedAt     DateTime          @default(now())
+  finishedAt    DateTime?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  user    User             @relation(fields: [userId], references: [id])
+  quiz    Quiz             @relation(fields: [quizId], references: [id])
+  answers QuestionAnswer[]
+  tickets Ticket[]
+
+  @@map("quiz_attempts")
+}
+
+enum QuizAttemptStatus {
+  IN_PROGRESS
+  PASSED
+  FAILED
+  REQUIRES_REWATCH
+}
+
+model QuestionAnswer {
+  id            String   @id @default(cuid())
+  attemptId     String
+  questionId    String
+  selectedOptionId String?
+  justification String?  // Justificativa para casos clínicos
+  isCorrect     Boolean?
+  createdAt     DateTime @default(now())
+
+  attempt        QuizAttempt @relation(fields: [attemptId], references: [id])
+  question       Question    @relation(fields: [questionId], references: [id])
+  selectedOption Option?     @relation(fields: [selectedOptionId], references: [id])
+
+  @@map("question_answers")
+}
+
+// ============================================
+// COMPETÊNCIAS
+// ============================================
+
+model Competency {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  courseId    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  course          Course?          @relation(fields: [courseId], references: [id])
+  userCompetencies UserCompetency[]
+
+  @@map("competencies")
+}
+
+model UserCompetency {
+  id           String          @id @default(cuid())
+  userId       String
+  competencyId String
+  status       CompetencyStatus @default(RED)
+  achievedAt   DateTime?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  user       User       @relation(fields: [userId], references: [id])
+  competency Competency @relation(fields: [competencyId], references: [id])
+
+  @@unique([userId, competencyId])
+  @@map("user_competencies")
+}
+
+enum CompetencyStatus {
+  GREEN
+  YELLOW
+  ORANGE
+  RED
+}
+
+// ============================================
+// SUPORTE
+// ============================================
+
+model Ticket {
+  id            String       @id @default(cuid())
+  userId        String
+  subject       String
+  description   String
+  status        TicketStatus @default(OPEN)
+  courseId      String?
+  moduleId      String?
+  lessonId      String?
+  quizAttemptId String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  user        User         @relation(fields: [userId], references: [id])
+  course      Course?      @relation(fields: [courseId], references: [id])
+  module      Module?      @relation(fields: [moduleId], references: [id])
+  lesson      Lesson?      @relation(fields: [lessonId], references: [id])
+  quizAttempt QuizAttempt? @relation(fields: [quizAttemptId], references: [id])
+
+  @@map("tickets")
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+// ============================================
+// AUDITORIA
+// ============================================
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  action    String   // Ex: LOGIN, LESSON_COMPLETED, QUIZ_ATTEMPT, CERTIFICATE_ISSUED
+  entity    String?  // Ex: User, Lesson, Quiz
+  entityId  String?
+  metadata  Json?    // Dados adicionais do evento
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@map("audit_logs")
+}
