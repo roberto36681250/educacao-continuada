@@ -300,3 +300,132 @@ curl -X POST http://localhost:3001/invites \
 - `apps/web/src/app/admin/convites/page.tsx`
 - `apps/web/src/app/invite/[token]/page.tsx`
 - `apps/web/src/app/me/page.tsx`
+
+---
+
+## Bloco 5 - Cursos, Aulas e Player YouTube com Progresso
+**Status**: Concluído
+
+### O que foi feito
+
+#### API (NestJS)
+- **CoursesModule**: CRUD de cursos
+  - GET `/courses?instituteId=` - Listar cursos do instituto
+  - GET `/courses/:id` - Detalhes do curso com módulos
+  - POST `/courses` - Criar curso (ADMIN/MANAGER)
+  - PATCH `/courses/:id` - Atualizar curso (ADMIN/MANAGER)
+
+- **ModulesModule**: CRUD de módulos
+  - GET `/modules?courseId=` - Listar módulos do curso
+  - POST `/modules` - Criar módulo (ADMIN/MANAGER)
+  - PATCH `/modules/:id` - Atualizar módulo (ADMIN/MANAGER)
+
+- **LessonsModule**: CRUD de aulas + progresso
+  - GET `/lessons?moduleId=` - Listar aulas do módulo
+  - GET `/lessons/:id` - Detalhes da aula
+  - POST `/lessons` - Criar aula (ADMIN/MANAGER)
+  - PATCH `/lessons/:id` - Atualizar aula (ADMIN/MANAGER)
+  - GET `/lessons/:id/progress` - Obter progresso do usuário
+  - POST `/lessons/:id/progress` - Atualizar progresso (watchedSeconds)
+
+#### Web (Next.js)
+- `/professor/cursos` - Lista de cursos + criar novo
+- `/professor/cursos/[id]` - Gerenciar módulos e aulas do curso
+- `/cursos` - Lista de cursos para aluno
+- `/curso/[id]` - Visualização do curso com módulos expandíveis
+- `/aula/[id]` - Player YouTube com contagem de tempo
+- `/quiz/[lessonId]` - Placeholder para quiz (será implementado no próximo bloco)
+
+### Tracking de Progresso
+
+O sistema de progresso funciona assim:
+
+1. **Contagem de tempo**: Só conta quando:
+   - Vídeo está tocando (PlayerState.PLAYING)
+   - Aba do navegador está visível (document.visibilityState === 'visible')
+
+2. **Salvamento**:
+   - A cada 10 segundos via POST /lessons/:id/progress
+   - Ao sair da página via navigator.sendBeacon
+   - Ao trocar de aba (visibilitychange)
+
+3. **Cálculo de conclusão**:
+   - `watchedPct = floor((watchedSeconds / durationSeconds) * 100)`
+   - `completed = watchedPct >= minWatchPercent` (padrão: 90%)
+
+4. **Liberação do quiz**:
+   - Quiz só aparece como clicável quando `completed = true`
+   - Acesso direto à rota /quiz/[id] redireciona para /aula/[id] se não completou
+
+### Como testar
+
+```bash
+# 1. Garantir que o banco está atualizado
+cd apps/api
+npx prisma db push
+
+# 2. Iniciar servidores
+cd ../..
+pnpm dev
+
+# 3. Login como admin
+# http://localhost:3000/login
+# admin@educacaocontinuada.com.br / admin123
+
+# 4. Criar um curso
+# http://localhost:3000/professor/cursos
+# Clique em "+ Novo Curso"
+
+# 5. Adicionar módulo e aula
+# Acesse o curso criado
+# Clique em "+ Novo Módulo"
+# Clique em "+ Nova Aula"
+# Preencha com um YouTube Video ID (ex: dQw4w9WgXcQ)
+
+# 6. Testar como aluno
+# http://localhost:3000/cursos
+# Acesse o curso > módulo > aula
+# Assista o vídeo e veja a barra de progresso
+```
+
+### Entidades de Progresso
+
+```
+VideoProgress {
+  id
+  userId        -> User
+  lessonId      -> Lesson
+  watchedSeconds
+  watchedPct
+  completed
+  lastWatchedAt
+}
+```
+
+### Endpoints da API (Bloco 5)
+| Método | Rota | Autenticação | Descrição |
+|--------|------|--------------|-----------|
+| GET | /courses?instituteId= | JWT | Listar cursos |
+| GET | /courses/:id | JWT | Detalhes do curso |
+| POST | /courses | JWT (ADMIN/MANAGER) | Criar curso |
+| PATCH | /courses/:id | JWT (ADMIN/MANAGER) | Atualizar curso |
+| GET | /modules?courseId= | JWT | Listar módulos |
+| POST | /modules | JWT (ADMIN/MANAGER) | Criar módulo |
+| PATCH | /modules/:id | JWT (ADMIN/MANAGER) | Atualizar módulo |
+| GET | /lessons?moduleId= | JWT | Listar aulas |
+| GET | /lessons/:id | JWT | Detalhes da aula |
+| POST | /lessons | JWT (ADMIN/MANAGER) | Criar aula |
+| PATCH | /lessons/:id | JWT (ADMIN/MANAGER) | Atualizar aula |
+| GET | /lessons/:id/progress | JWT | Obter progresso |
+| POST | /lessons/:id/progress | JWT | Atualizar progresso |
+
+### Arquivos criados
+- `apps/api/src/courses/*` - Módulo de cursos
+- `apps/api/src/modules/*` - Módulo de módulos
+- `apps/api/src/lessons/*` - Módulo de aulas
+- `apps/web/src/app/professor/cursos/page.tsx`
+- `apps/web/src/app/professor/cursos/[id]/page.tsx`
+- `apps/web/src/app/cursos/page.tsx`
+- `apps/web/src/app/curso/[id]/page.tsx`
+- `apps/web/src/app/aula/[id]/page.tsx`
+- `apps/web/src/app/quiz/[lessonId]/page.tsx`

@@ -7,6 +7,9 @@ import { InvitesModule } from './invites/invites.module';
 import { InstitutesModule } from './institutes/institutes.module';
 import { HospitalsModule } from './hospitals/hospitals.module';
 import { UnitsModule } from './units/units.module';
+import { CoursesModule } from './courses/courses.module';
+import { ModulesModule } from './modules/modules.module';
+import { LessonsModule } from './lessons/lessons.module';
 
 @Module({
   imports: [
@@ -17,6 +20,9 @@ import { UnitsModule } from './units/units.module';
     InstitutesModule,
     HospitalsModule,
     UnitsModule,
+    CoursesModule,
+    ModulesModule,
+    LessonsModule,
   ],
   controllers: [AppController],
   providers: [],
