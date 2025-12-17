@@ -92,3 +92,92 @@ npx prisma studio
 - [x] `npx prisma db push` - Schema sincronizado com Supabase
 - [x] `npx prisma db seed` - Seed executado com sucesso
 - [x] Dados visíveis no painel do Supabase
+
+---
+
+## Bloco 3 - Convite + Registro + Login
+**Status**: Concluído
+
+### O que foi feito
+
+#### Schema Prisma
+- Adicionado campo `passwordHash` ao User
+- Criada entidade `InviteToken` para convites de registro
+- Fix no tsconfig para excluir pasta prisma do watch
+
+#### API (NestJS)
+- **AuthModule**: Login e autenticação JWT
+  - POST `/auth/login` - Login com email/senha
+  - GET `/auth/me` - Dados do usuário logado (autenticado)
+  - JwtStrategy para validação de tokens
+  - RolesGuard e @Roles() decorator para RBAC
+
+- **InvitesModule**: Gerenciamento de convites
+  - POST `/invites` - Criar convite (ADMIN_MASTER/ADMIN)
+  - GET `/invites/:token` - Consultar convite (público)
+  - POST `/invites/:token/accept` - Aceitar convite e criar conta (público)
+
+- Dependências adicionadas: bcrypt, passport, @nestjs/passport, @nestjs/jwt
+
+#### Web (Next.js)
+- `/login` - Página de login com email/senha
+- `/invite/[token]` - Página de aceitar convite e registro
+- `/me` - Página de perfil do usuário logado
+- `src/lib/api.ts` - Cliente HTTP com gestão de token JWT
+
+### Fluxo de uso
+1. Admin cria convite via POST /invites
+2. Usuário acessa /invite/[token]
+3. Preenche formulário de registro (nome, email, CPF, telefone, registro profissional, senha)
+4. Sistema cria usuário e retorna token JWT
+5. Usuário é redirecionado para /me
+6. Login subsequente via /login
+
+### Como testar
+```bash
+# 1. Rodar seed (cria admin com senha admin123)
+cd apps/api
+npx prisma db push --force-reset
+npx prisma db seed
+
+# 2. Iniciar servidores
+cd ../..
+pnpm dev
+
+# 3. Testar login do admin
+# Acesse http://localhost:3000/login
+# Email: admin@educacaocontinuada.com.br
+# Senha: admin123
+
+# 4. Criar convite via API (usando token do admin)
+curl -X POST http://localhost:3001/invites \
+  -H "Authorization: Bearer <TOKEN_DO_ADMIN>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "instituteId": "<ID_DO_INSTITUTO>",
+    "profession": "Enfermeiro",
+    "invitedEmail": "novo@example.com"
+  }'
+
+# 5. Acessar convite
+# http://localhost:3000/invite/<TOKEN_DO_CONVITE>
+```
+
+### Endpoints da API
+| Método | Rota | Autenticação | Descrição |
+|--------|------|--------------|-----------|
+| POST | /auth/login | Não | Login |
+| GET | /auth/me | JWT | Dados do usuário |
+| POST | /invites | JWT (ADMIN+) | Criar convite |
+| GET | /invites/:token | Não | Consultar convite |
+| POST | /invites/:token/accept | Não | Aceitar convite |
+
+### Arquivos criados/modificados
+- `apps/api/src/auth/*` - Módulo de autenticação
+- `apps/api/src/invites/*` - Módulo de convites
+- `apps/api/prisma/schema.prisma` - InviteToken + passwordHash
+- `apps/api/prisma/seed.ts` - Admin com senha
+- `apps/web/src/app/login/page.tsx`
+- `apps/web/src/app/invite/[token]/page.tsx`
+- `apps/web/src/app/me/page.tsx`
+- `apps/web/src/lib/api.ts`

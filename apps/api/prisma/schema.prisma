@@ -19,6 +19,7 @@ model Institute {
   hospitals Hospital[]
   users     User[]
   courses   Course[]
+  invites   InviteToken[]
 
   @@map("institutes")
 }
@@ -30,8 +31,9 @@ model Hospital {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  institute Institute @relation(fields: [instituteId], references: [id])
+  institute Institute     @relation(fields: [instituteId], references: [id])
   units     Unit[]
+  invites   InviteToken[]
 
   @@map("hospitals")
 }
@@ -45,6 +47,7 @@ model Unit {
 
   hospital    Hospital             @relation(fields: [hospitalId], references: [id])
   assignments UserUnitAssignment[]
+  invites     InviteToken[]
 
   @@map("units")
 }
@@ -56,6 +59,7 @@ model Unit {
 model User {
   id                   String    @id @default(cuid())
   email                String    @unique
+  passwordHash         String?
   name                 String
   cpf                  String    @unique
   phone                String?
@@ -74,6 +78,7 @@ model User {
   competencies    UserCompetency[]
   tickets         Ticket[]
   auditLogs       AuditLog[]
+  createdInvites  InviteToken[]
 
   @@map("users")
 }
@@ -354,6 +359,32 @@ enum TicketStatus {
   IN_PROGRESS
   RESOLVED
   CLOSED
+}
+
+// ============================================
+// CONVITES
+// ============================================
+
+model InviteToken {
+  id              String    @id @default(cuid())
+  token           String    @unique @default(cuid())
+  instituteId     String
+  hospitalId      String?
+  unitId          String?
+  systemRole      UserRole  @default(USER)
+  profession      String
+  invitedEmail    String?
+  expiresAt       DateTime
+  usedAt          DateTime?
+  createdByUserId String
+  createdAt       DateTime  @default(now())
+
+  institute Institute @relation(fields: [instituteId], references: [id])
+  hospital  Hospital? @relation(fields: [hospitalId], references: [id])
+  unit      Unit?     @relation(fields: [unitId], references: [id])
+  createdBy User      @relation(fields: [createdByUserId], references: [id])
+
+  @@map("invite_tokens")
 }
 
 // ============================================

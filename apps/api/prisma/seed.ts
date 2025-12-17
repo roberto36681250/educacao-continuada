@@ -2,6 +2,7 @@ import 'dotenv/config';
 import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient, UserRole } from '@prisma/client';
+import * as bcrypt from 'bcrypt';
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const adapter = new PrismaPg(pool);
@@ -85,13 +86,15 @@ async function main() {
   });
   console.log('✅ Unidades criadas:', utiAdultoA.name, ',', utiAdultoB.name, ',', comissaoSepse.name, ',', utiNorte.name);
 
-  // 4. Criar usuário ADMIN_MASTER
+  // 4. Criar usuário ADMIN_MASTER com senha
+  const adminPasswordHash = await bcrypt.hash('admin123', 10);
   const adminMaster = await prisma.user.upsert({
     where: { email: 'admin@educacaocontinuada.com.br' },
-    update: {},
+    update: { passwordHash: adminPasswordHash },
     create: {
       id: 'user-admin-master',
       email: 'admin@educacaocontinuada.com.br',
+      passwordHash: adminPasswordHash,
       name: 'Administrador Master',
       cpf: '00000000000',
       phone: '11999999999',
@@ -101,7 +104,7 @@ async function main() {
       instituteId: institute.id,
     },
   });
-  console.log('✅ Admin Master criado:', adminMaster.email);
+  console.log('✅ Admin Master criado:', adminMaster.email, '(senha: admin123)');
 
   // 5. Criar usuários de exemplo com profissões diferentes
   const medicoR1 = await prisma.user.upsert({
