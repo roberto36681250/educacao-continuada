@@ -17,18 +17,18 @@ export class InvitesService {
     private jwtService: JwtService,
   ) {}
 
-  async create(dto: CreateInviteDto, creatorId: string, instituteId: string) {
+  async create(dto: CreateInviteDto, creatorId: string) {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + (dto.expiresInDays || 7));
 
     const invite = await this.prisma.inviteToken.create({
       data: {
-        instituteId,
+        instituteId: dto.instituteId,
         hospitalId: dto.hospitalId,
         unitId: dto.unitId,
         systemRole: dto.systemRole,
         profession: dto.profession,
-        invitedEmail: dto.email,
+        invitedEmail: dto.invitedEmail,
         expiresAt,
         createdByUserId: creatorId,
       },
@@ -39,14 +39,16 @@ export class InvitesService {
 
     console.log('📧 Convite criado:');
     console.log(`   URL: ${inviteUrl}`);
-    console.log(`   Email: ${dto.email || '(qualquer)'}`);
+    console.log(`   Email: ${dto.invitedEmail || '(qualquer)'}`);
     console.log(`   Expira em: ${expiresAt.toISOString()}`);
 
     return {
       id: invite.id,
       token: invite.token,
-      inviteUrl,
+      profession: invite.profession,
+      invitedEmail: invite.invitedEmail,
       expiresAt: invite.expiresAt,
+      inviteUrl,
     };
   }
 
@@ -100,14 +102,15 @@ export class InvitesService {
       throw new BadRequestException('Este convite expirou');
     }
 
-    // Verificar se email já existe (se o convite tem email definido)
-    if (invite.invitedEmail) {
-      const existingUserByEmail = await this.prisma.user.findUnique({
-        where: { email: invite.invitedEmail },
-      });
-      if (existingUserByEmail) {
-        throw new ConflictException('Este email já está cadastrado');
-      }
+    // Usar email do DTO
+    const email = dto.email;
+
+    // Verificar se email já existe
+    const existingUserByEmail = await this.prisma.user.findUnique({
+      where: { email },
+    });
+    if (existingUserByEmail) {
+      throw new ConflictException('Este email já está cadastrado');
     }
 
     // Verificar se CPF já existe
@@ -126,13 +129,13 @@ export class InvitesService {
       // Criar usuário
       const user = await tx.user.create({
         data: {
-          email: invite.invitedEmail || `user-${Date.now()}@temp.com`, // Se não tiver email no convite, gerar temporário
+          email,
           passwordHash,
           name: dto.name,
           cpf: dto.cpf,
           phone: dto.phone,
           profession: invite.profession,
-          professionalRegister: dto.registry,
+          professionalRegister: dto.professionalRegister,
           role: invite.systemRole,
           instituteId: invite.instituteId,
         },

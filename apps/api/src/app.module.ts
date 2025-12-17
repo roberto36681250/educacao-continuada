@@ -4,6 +4,9 @@ import { AppController } from './app.controller';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { InvitesModule } from './invites/invites.module';
+import { InstitutesModule } from './institutes/institutes.module';
+import { HospitalsModule } from './hospitals/hospitals.module';
+import { UnitsModule } from './units/units.module';
 
 @Module({
   imports: [
@@ -11,6 +14,9 @@ import { InvitesModule } from './invites/invites.module';
     PrismaModule,
     AuthModule,
     InvitesModule,
+    InstitutesModule,
+    HospitalsModule,
+    UnitsModule,
   ],
   controllers: [AppController],
   providers: [],

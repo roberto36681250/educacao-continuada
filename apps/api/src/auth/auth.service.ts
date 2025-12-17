@@ -113,7 +113,11 @@ export class AuthService {
       throw new UnauthorizedException('Usuário não encontrado');
     }
 
-    return user;
+    // Mapear 'role' para 'systemRole' para consistência no frontend
+    return {
+      ...user,
+      systemRole: user.role,
+    };
   }
 
   async hashPassword(password: string): Promise<string> {

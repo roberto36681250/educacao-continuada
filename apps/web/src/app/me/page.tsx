@@ -132,9 +132,18 @@ export default function MePage() {
             </div>
           </div>
 
+          {['ADMIN_MASTER', 'ADMIN'].includes(user?.systemRole || '') && (
+            <a
+              href="/admin/invites"
+              className="block w-full mt-6 bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 text-center"
+            >
+              Criar Convite
+            </a>
+          )}
+
           <button
             onClick={handleLogout}
-            className="w-full mt-8 bg-red-600 text-white py-2 px-4 rounded-md hover:bg-red-700"
+            className="w-full mt-4 bg-red-600 text-white py-2 px-4 rounded-md hover:bg-red-700"
           >
             Sair
           </button>

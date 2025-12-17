@@ -21,9 +21,9 @@ export class InvitesController {
 
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN_MASTER)
+  @Roles(UserRole.ADMIN_MASTER, UserRole.ADMIN)
   async create(@Body() dto: CreateInviteDto, @Request() req: any) {
-    return this.invitesService.create(dto, req.user.id, req.user.instituteId);
+    return this.invitesService.create(dto, req.user.id);
   }
 
   @Get(':token')

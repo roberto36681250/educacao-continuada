@@ -1,10 +1,13 @@
-import { IsString, MinLength, MaxLength, Matches } from 'class-validator';
+import { IsString, IsEmail, IsOptional, MinLength, MaxLength, Matches } from 'class-validator';
 
 export class AcceptInviteDto {
   @IsString()
   @MinLength(3)
   @MaxLength(100)
   name: string;
+
+  @IsEmail()
+  email: string;
 
   @IsString()
   @Matches(/^\d{11}$/, { message: 'CPF deve conter exatamente 11 dígitos' })
@@ -15,8 +18,7 @@ export class AcceptInviteDto {
   phone: string;
 
   @IsString()
-  @IsString()
-  registry: string;
+  professionalRegister: string;
 
   @IsString()
   @MinLength(6)

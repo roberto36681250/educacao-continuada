@@ -2,19 +2,19 @@ import { IsEmail, IsString, IsOptional, IsEnum, IsInt, Min, Max } from 'class-va
 import { UserRole } from '@prisma/client';
 
 export class CreateInviteDto {
+  @IsString()
+  instituteId: string;
+
   @IsEmail()
   @IsOptional()
-  email?: string;
+  invitedEmail?: string;
 
   @IsEnum(UserRole)
-  systemRole: UserRole;
+  @IsOptional()
+  systemRole?: UserRole = UserRole.USER;
 
   @IsString()
   profession: string;
-
-  @IsString()
-  @IsOptional()
-  registry?: string;
 
   @IsString()
   @IsOptional()
