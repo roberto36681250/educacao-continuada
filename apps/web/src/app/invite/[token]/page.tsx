@@ -8,11 +8,15 @@ interface InviteData {
   id: string;
   token: string;
   profession: string;
+  systemRole: string;
   invitedEmail: string | null;
   expiresAt: string;
   institute: { id: string; name: string };
   hospital: { id: string; name: string } | null;
   unit: { id: string; name: string } | null;
+  isValid: boolean;
+  isExpired: boolean;
+  isUsed: boolean;
 }
 
 interface AcceptResponse {
@@ -118,14 +122,69 @@ export default function InvitePage() {
     );
   }
 
+  // Convite não encontrado
   if (error && !invite) {
     return (
       <main className="flex min-h-screen flex-col items-center justify-center p-6 bg-gray-50">
-        <div className="w-full max-w-md bg-white shadow-md rounded-lg p-8">
-          <h1 className="text-2xl font-bold text-red-600 mb-4">Convite Inválido</h1>
-          <p className="text-gray-600 mb-6">{error}</p>
-          <a href="/login" className="text-blue-600 hover:underline">
+        <div className="w-full max-w-md bg-white shadow-md rounded-lg p-8 text-center">
+          <div className="text-6xl mb-4">❌</div>
+          <h1 className="text-2xl font-bold text-red-600 mb-4">Convite não encontrado</h1>
+          <p className="text-gray-600 mb-6">
+            O link que você acessou não corresponde a nenhum convite válido.
+            Verifique se o link está correto ou solicite um novo convite ao administrador.
+          </p>
+          <a
+            href="/login"
+            className="inline-block bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700"
+          >
             Ir para login
+          </a>
+        </div>
+      </main>
+    );
+  }
+
+  // Convite expirado
+  if (invite?.isExpired) {
+    return (
+      <main className="flex min-h-screen flex-col items-center justify-center p-6 bg-gray-50">
+        <div className="w-full max-w-md bg-white shadow-md rounded-lg p-8 text-center">
+          <div className="text-6xl mb-4">⏰</div>
+          <h1 className="text-2xl font-bold text-yellow-600 mb-4">Convite expirado</h1>
+          <p className="text-gray-600 mb-2">
+            Este convite expirou em{' '}
+            <strong>{new Date(invite.expiresAt).toLocaleDateString('pt-BR')}</strong>.
+          </p>
+          <p className="text-gray-600 mb-6">
+            Solicite um novo convite ao administrador do sistema.
+          </p>
+          <a
+            href="/login"
+            className="inline-block bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700"
+          >
+            Ir para login
+          </a>
+        </div>
+      </main>
+    );
+  }
+
+  // Convite já utilizado
+  if (invite?.isUsed) {
+    return (
+      <main className="flex min-h-screen flex-col items-center justify-center p-6 bg-gray-50">
+        <div className="w-full max-w-md bg-white shadow-md rounded-lg p-8 text-center">
+          <div className="text-6xl mb-4">✅</div>
+          <h1 className="text-2xl font-bold text-gray-600 mb-4">Convite já utilizado</h1>
+          <p className="text-gray-600 mb-6">
+            Este convite já foi utilizado para criar uma conta.
+            Se você já tem uma conta, faça login abaixo.
+          </p>
+          <a
+            href="/login"
+            className="inline-block bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700"
+          >
+            Fazer login
           </a>
         </div>
       </main>

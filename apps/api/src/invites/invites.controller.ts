@@ -4,6 +4,7 @@ import {
   Get,
   Body,
   Param,
+  Query,
   UseGuards,
   Request,
 } from '@nestjs/common';
@@ -18,6 +19,13 @@ import { UserRole } from '@prisma/client';
 @Controller('invites')
 export class InvitesController {
   constructor(private invitesService: InvitesService) {}
+
+  @Get()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN_MASTER, UserRole.ADMIN)
+  async findByInstitute(@Query('instituteId') instituteId: string) {
+    return this.invitesService.findByInstitute(instituteId);
+  }
 
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)

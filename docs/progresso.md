@@ -181,3 +181,122 @@ curl -X POST http://localhost:3001/invites \
 - `apps/web/src/app/invite/[token]/page.tsx`
 - `apps/web/src/app/me/page.tsx`
 - `apps/web/src/lib/api.ts`
+
+---
+
+## Bloco 4 - Admin Web para Hospitais, Unidades e Convites
+**Status**: Concluído
+
+### O que foi feito
+
+#### API (NestJS)
+- **HospitalsModule** expandido:
+  - GET `/hospitals?instituteId=` - Listar hospitais do instituto
+  - GET `/hospitals/:id` - Detalhes do hospital
+  - POST `/hospitals` - Criar hospital (ADMIN_MASTER)
+  - PATCH `/hospitals/:id` - Atualizar hospital (ADMIN_MASTER)
+
+- **UnitsModule** expandido:
+  - GET `/units?hospitalId=` - Listar unidades do hospital
+  - GET `/units/:id` - Detalhes da unidade
+  - POST `/units` - Criar unidade (ADMIN_MASTER)
+  - PATCH `/units/:id` - Atualizar unidade (ADMIN_MASTER)
+
+- **InvitesModule** expandido:
+  - GET `/invites?instituteId=` - Listar convites recentes (ADMIN+)
+
+#### Web (Next.js)
+- `/admin` - Dashboard administrativo com links para as páginas
+- `/admin/hospitais` - CRUD de hospitais (listar, criar, editar)
+- `/admin/unidades` - CRUD de unidades com filtro por hospital
+- `/admin/convites` - Formulário de criação + tabela de convites recentes
+- `/invite/[token]` - UX melhorada com tratamento de estados (inválido, expirado, usado)
+
+### Como criar um Hospital
+
+1. Acesse http://localhost:3000/login
+2. Entre com admin@educacaocontinuada.com.br / admin123
+3. Clique em "Painel Administrativo"
+4. Clique em "Hospitais"
+5. Clique em "+ Novo Hospital"
+6. Preencha o nome e clique em "Criar"
+
+### Como criar uma Unidade
+
+1. Acesse o painel administrativo
+2. Clique em "Unidades"
+3. Selecione um hospital no filtro
+4. Clique em "+ Nova Unidade"
+5. Preencha o nome e clique em "Criar"
+
+### Como criar um Convite
+
+1. Acesse o painel administrativo
+2. Clique em "Convites"
+3. Preencha o formulário:
+   - Instituto (obrigatório)
+   - Hospital (opcional)
+   - Unidade (opcional)
+   - Profissão (obrigatório)
+   - Nível de Acesso (obrigatório)
+   - E-mail do convidado (opcional)
+   - Tempo de expiração
+4. Clique em "Criar Convite"
+5. Copie o link gerado e envie para o convidado
+
+### Como testar cadastro por convite
+
+1. Crie um convite conforme instruções acima
+2. Copie o link do convite
+3. Abra uma aba anônima no navegador
+4. Cole o link e acesse
+5. Preencha o formulário de cadastro:
+   - Nome completo
+   - E-mail
+   - CPF (11 dígitos)
+   - Telefone
+   - Registro Profissional
+   - Senha (mín. 6 caracteres)
+6. Clique em "Criar conta"
+7. Você será redirecionado automaticamente para a página de perfil
+
+### Validações implementadas
+- Convites expiram após o período configurado (padrão: 7 dias)
+- Convites não podem ser reutilizados após cadastro
+- CPF deve ser único no sistema
+- E-mail deve ser único no sistema
+- Página do convite mostra mensagens claras para:
+  - Token não encontrado
+  - Convite expirado
+  - Convite já utilizado
+
+### Endpoints da API (Bloco 4)
+| Método | Rota | Autenticação | Descrição |
+|--------|------|--------------|-----------|
+| GET | /hospitals?instituteId= | JWT | Listar hospitais |
+| GET | /hospitals/:id | JWT | Detalhes hospital |
+| POST | /hospitals | JWT (ADMIN_MASTER) | Criar hospital |
+| PATCH | /hospitals/:id | JWT (ADMIN_MASTER) | Atualizar hospital |
+| GET | /units?hospitalId= | JWT | Listar unidades |
+| GET | /units/:id | JWT | Detalhes unidade |
+| POST | /units | JWT (ADMIN_MASTER) | Criar unidade |
+| PATCH | /units/:id | JWT (ADMIN_MASTER) | Atualizar unidade |
+| GET | /invites?instituteId= | JWT (ADMIN+) | Listar convites |
+
+### Arquivos criados/modificados
+- `apps/api/src/hospitals/dto/create-hospital.dto.ts`
+- `apps/api/src/hospitals/dto/update-hospital.dto.ts`
+- `apps/api/src/hospitals/hospitals.controller.ts`
+- `apps/api/src/hospitals/hospitals.service.ts`
+- `apps/api/src/units/dto/create-unit.dto.ts`
+- `apps/api/src/units/dto/update-unit.dto.ts`
+- `apps/api/src/units/units.controller.ts`
+- `apps/api/src/units/units.service.ts`
+- `apps/api/src/invites/invites.controller.ts`
+- `apps/api/src/invites/invites.service.ts`
+- `apps/web/src/app/admin/page.tsx`
+- `apps/web/src/app/admin/hospitais/page.tsx`
+- `apps/web/src/app/admin/unidades/page.tsx`
+- `apps/web/src/app/admin/convites/page.tsx`
+- `apps/web/src/app/invite/[token]/page.tsx`
+- `apps/web/src/app/me/page.tsx`

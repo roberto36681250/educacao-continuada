@@ -134,10 +134,10 @@ export default function MePage() {
 
           {['ADMIN_MASTER', 'ADMIN'].includes(user?.systemRole || '') && (
             <a
-              href="/admin/invites"
+              href="/admin"
               className="block w-full mt-6 bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 text-center"
             >
-              Criar Convite
+              Painel Administrativo
             </a>
           )}
 

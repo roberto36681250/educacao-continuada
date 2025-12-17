@@ -85,6 +85,48 @@ export class InvitesService {
     };
   }
 
+  async findByInstitute(instituteId: string) {
+    const invites = await this.prisma.inviteToken.findMany({
+      where: { instituteId },
+      include: {
+        hospital: { select: { id: true, name: true } },
+        unit: { select: { id: true, name: true } },
+        createdBy: { select: { id: true, name: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    });
+
+    const now = new Date();
+    return invites.map((invite) => {
+      const isExpired = now > invite.expiresAt;
+      const isUsed = invite.usedAt !== null;
+      let status: 'valid' | 'expired' | 'used';
+      if (isUsed) {
+        status = 'used';
+      } else if (isExpired) {
+        status = 'expired';
+      } else {
+        status = 'valid';
+      }
+
+      return {
+        id: invite.id,
+        token: invite.token,
+        profession: invite.profession,
+        systemRole: invite.systemRole,
+        invitedEmail: invite.invitedEmail,
+        hospital: invite.hospital,
+        unit: invite.unit,
+        createdBy: invite.createdBy,
+        expiresAt: invite.expiresAt,
+        usedAt: invite.usedAt,
+        createdAt: invite.createdAt,
+        status,
+      };
+    });
+  }
+
   async accept(token: string, dto: AcceptInviteDto) {
     const invite = await this.prisma.inviteToken.findUnique({
       where: { token },
