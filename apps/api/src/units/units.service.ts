@@ -22,6 +22,20 @@ export class UnitsService {
     });
   }
 
+  async findByInstitute(instituteId: string) {
+    return this.prisma.unit.findMany({
+      where: { hospital: { instituteId } },
+      select: {
+        id: true,
+        name: true,
+        hospital: {
+          select: { id: true, name: true },
+        },
+      },
+      orderBy: [{ hospital: { name: 'asc' } }, { name: 'asc' }],
+    });
+  }
+
   async findOne(id: string) {
     const unit = await this.prisma.unit.findUnique({
       where: { id },

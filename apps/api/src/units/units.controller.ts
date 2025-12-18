@@ -22,8 +22,17 @@ export class UnitsController {
   constructor(private unitsService: UnitsService) {}
 
   @Get()
-  findByHospital(@Query('hospitalId') hospitalId: string) {
-    return this.unitsService.findByHospital(hospitalId);
+  findByHospitalOrInstitute(
+    @Query('hospitalId') hospitalId?: string,
+    @Query('instituteId') instituteId?: string,
+  ) {
+    if (instituteId) {
+      return this.unitsService.findByInstitute(instituteId);
+    }
+    if (hospitalId) {
+      return this.unitsService.findByHospital(hospitalId);
+    }
+    return [];
   }
 
   @Get(':id')

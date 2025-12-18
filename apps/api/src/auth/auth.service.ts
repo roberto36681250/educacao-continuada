@@ -86,7 +86,7 @@ export class AuthService {
             name: true,
           },
         },
-        assignments: {
+        unitAssignments: {
           where: { endAt: null },
           select: {
             id: true,

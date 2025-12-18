@@ -71,14 +71,16 @@ model User {
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
 
-  institute       Institute            @relation(fields: [instituteId], references: [id])
-  assignments     UserUnitAssignment[]
-  videoProgress   VideoProgress[]
-  quizAttempts    QuizAttempt[]
-  competencies    UserCompetency[]
-  tickets         Ticket[]
-  auditLogs       AuditLog[]
-  createdInvites  InviteToken[]
+  institute            Institute              @relation(fields: [instituteId], references: [id])
+  unitAssignments      UserUnitAssignment[]
+  videoProgress        VideoProgress[]
+  quizAttempts         QuizAttempt[]
+  competencies         UserCompetency[]
+  tickets              Ticket[]
+  auditLogs            AuditLog[]
+  createdInvites       InviteToken[]
+  createdAssignments   Assignment[]           @relation("AssignmentCreator")
+  assignmentStatuses   UserAssignmentStatus[]
 
   @@map("users")
 }
@@ -120,10 +122,11 @@ model Course {
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
-  institute   Institute    @relation(fields: [instituteId], references: [id])
-  modules     Module[]
+  institute    Institute    @relation(fields: [instituteId], references: [id])
+  modules      Module[]
   competencies Competency[]
-  tickets     Ticket[]
+  tickets      Ticket[]
+  assignments  Assignment[]
 
   @@map("courses")
 }
@@ -405,6 +408,71 @@ model InviteToken {
   createdBy User      @relation(fields: [createdByUserId], references: [id])
 
   @@map("invite_tokens")
+}
+
+// ============================================
+// ATRIBUIÇÕES E PRAZOS
+// ============================================
+
+model Assignment {
+  id              String   @id @default(cuid())
+  instituteId     String
+  courseId        String
+  title           String   // Ex: "Treinamento Sepse Janeiro"
+  startAt         DateTime
+  dueAt           DateTime
+  createdByUserId String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  course    Course            @relation(fields: [courseId], references: [id])
+  createdBy User              @relation("AssignmentCreator", fields: [createdByUserId], references: [id])
+  scopes    AssignmentScope[]
+  statuses  UserAssignmentStatus[]
+
+  @@map("assignments")
+}
+
+model AssignmentScope {
+  id           String               @id @default(cuid())
+  assignmentId String
+  scopeType    AssignmentScopeType
+  profession   String?              // Required quando scopeType envolve profissão
+  unitId       String?              // Required quando scopeType envolve unidade
+  createdAt    DateTime             @default(now())
+
+  assignment Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+
+  @@map("assignment_scopes")
+}
+
+enum AssignmentScopeType {
+  INSTITUTE_PROFESSION  // Profissão no Instituto inteiro
+  UNIT_ALL              // Unidade inteira, multiprofissional
+  UNIT_PROFESSION       // Profissão dentro de uma unidade
+}
+
+model UserAssignmentStatus {
+  id           String                   @id @default(cuid())
+  assignmentId String
+  userId       String
+  status       UserAssignmentStatusEnum @default(PENDING)
+  completedAt  DateTime?
+  createdAt    DateTime                 @default(now())
+  updatedAt    DateTime                 @updatedAt
+
+  assignment Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id])
+
+  @@unique([assignmentId, userId])
+  @@map("user_assignment_statuses")
+}
+
+enum UserAssignmentStatusEnum {
+  PENDING
+  IN_PROGRESS
+  COMPLETED_ON_TIME
+  COMPLETED_LATE
 }
 
 // ============================================
