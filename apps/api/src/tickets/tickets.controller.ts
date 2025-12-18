@@ -58,6 +58,53 @@ export class TicketsController {
     return this.ticketsService.getMyTickets(req.user.id);
   }
 
+  // IMPORTANT: These specific routes must come BEFORE tickets/:id
+  @Get('tickets/export.csv')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN_MASTER', 'ADMIN', 'MANAGER')
+  async exportTicketsCSV(
+    @Request() req: any,
+    @Res() res: Response,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    const csv = await this.ticketsService.exportTicketsCSV(
+      req.user.instituteId,
+      from,
+      to,
+    );
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename=tickets-${new Date().toISOString().split('T')[0]}.csv`,
+    );
+    res.send('\ufeff' + csv); // BOM for Excel
+  }
+
+  @Get('tickets/attachments/:attachmentId/download')
+  @UseGuards(JwtAuthGuard)
+  async downloadAttachment(
+    @Param('attachmentId') attachmentId: string,
+    @Request() req: any,
+    @Res() res: Response,
+  ) {
+    const attachment = await this.ticketsService.getAttachmentForDownload(
+      attachmentId,
+      req.user.id,
+      req.user.role,
+    );
+
+    res.setHeader('Content-Type', attachment.mimeType);
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${attachment.filename}"`,
+    );
+
+    const stream = fs.createReadStream(attachment.storagePath);
+    stream.pipe(res);
+  }
+
   @Get('tickets/:id')
   @UseGuards(JwtAuthGuard)
   async getTicketById(@Param('id') id: string, @Request() req: any) {
@@ -153,55 +200,5 @@ export class TicketsController {
       body.assignedToUserId,
       req.user.instituteId,
     );
-  }
-
-  @Get('tickets/export.csv')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN_MASTER', 'ADMIN', 'MANAGER')
-  async exportTicketsCSV(
-    @Request() req: any,
-    @Res() res: Response,
-    @Query('from') from?: string,
-    @Query('to') to?: string,
-  ) {
-    const csv = await this.ticketsService.exportTicketsCSV(
-      req.user.instituteId,
-      from,
-      to,
-    );
-
-    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader(
-      'Content-Disposition',
-      `attachment; filename=tickets-${new Date().toISOString().split('T')[0]}.csv`,
-    );
-    res.send('\ufeff' + csv); // BOM for Excel
-  }
-
-  // ============================================
-  // ATTACHMENT DOWNLOAD
-  // ============================================
-
-  @Get('tickets/attachments/:attachmentId/download')
-  @UseGuards(JwtAuthGuard)
-  async downloadAttachment(
-    @Param('attachmentId') attachmentId: string,
-    @Request() req: any,
-    @Res() res: Response,
-  ) {
-    const attachment = await this.ticketsService.getAttachmentForDownload(
-      attachmentId,
-      req.user.id,
-      req.user.role,
-    );
-
-    res.setHeader('Content-Type', attachment.mimeType);
-    res.setHeader(
-      'Content-Disposition',
-      `attachment; filename="${attachment.filename}"`,
-    );
-
-    const stream = fs.createReadStream(attachment.storagePath);
-    stream.pipe(res);
   }
 }
