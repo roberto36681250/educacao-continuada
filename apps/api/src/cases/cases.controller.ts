@@ -38,7 +38,7 @@ export class CasesController {
   ) {
     return this.casesService.create(
       req.user.instituteId,
-      req.user.userId,
+      req.user.id,
       body,
     );
   }
@@ -65,7 +65,7 @@ export class CasesController {
     return this.casesService.anonymize(
       id,
       req.user.instituteId,
-      req.user.userId,
+      req.user.id,
       body.rawText,
     );
   }
@@ -77,7 +77,7 @@ export class CasesController {
     return this.casesService.publish(
       id,
       req.user.instituteId,
-      req.user.userId,
+      req.user.id,
     );
   }
 
@@ -88,7 +88,7 @@ export class CasesController {
     return this.casesService.archive(
       id,
       req.user.instituteId,
-      req.user.userId,
+      req.user.id,
     );
   }
 
