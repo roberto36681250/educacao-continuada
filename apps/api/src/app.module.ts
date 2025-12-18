@@ -16,6 +16,8 @@ import { CertificatesModule } from './certificates/certificates.module';
 import { TicketsModule } from './tickets/tickets.module';
 import { FAQModule } from './faq/faq.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { CompetenciesModule } from './competencies/competencies.module';
+import { ReviewsModule } from './reviews/reviews.module';
 
 @Module({
   imports: [
@@ -35,6 +37,8 @@ import { NotificationsModule } from './notifications/notifications.module';
     TicketsModule,
     FAQModule,
     NotificationsModule,
+    CompetenciesModule,
+    ReviewsModule,
   ],
   controllers: [AppController],
   providers: [],

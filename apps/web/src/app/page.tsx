@@ -24,10 +24,21 @@ interface PendingAssignment {
   };
 }
 
+interface PendingReview {
+  id: string;
+  dueAt: string;
+  status: 'DUE' | 'OVERDUE' | 'DONE';
+  competency: {
+    id: string;
+    name: string;
+  };
+}
+
 export default function Home() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [pendingAssignments, setPendingAssignments] = useState<PendingAssignment[]>([]);
+  const [pendingReviews, setPendingReviews] = useState<PendingReview[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -45,7 +56,7 @@ export default function Home() {
       const userData = await api<User>('/auth/me');
       setUser(userData);
 
-      // Load pending assignments for non-admin users
+      // Load pending assignments and reviews for non-admin users
       if (userData.role !== 'ADMIN_MASTER') {
         try {
           const assignments = await api<PendingAssignment[]>('/me/assignments');
@@ -55,6 +66,14 @@ export default function Home() {
           setPendingAssignments(pending);
         } catch {
           // Ignore errors loading assignments
+        }
+
+        try {
+          const reviews = await api<PendingReview[]>('/me/reviews');
+          const pending = reviews.filter((r) => r.status !== 'DONE');
+          setPendingReviews(pending);
+        } catch {
+          // Ignore errors loading reviews
         }
       }
     } catch {
@@ -112,6 +131,69 @@ export default function Home() {
           </h1>
           <p className="text-gray-600">Bem-vindo à plataforma de Educação Continuada</p>
         </div>
+
+        {/* Pending reviews alert */}
+        {pendingReviews.length > 0 && (
+          <div className="mb-8">
+            <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-semibold text-purple-800">
+                    Voce tem {pendingReviews.length} revisao(oes) pendente(s)
+                  </h2>
+                  <p className="text-purple-700 text-sm">
+                    Complete suas revisoes para manter suas competencias em dia
+                  </p>
+                </div>
+                <button
+                  onClick={() => router.push('/revisoes')}
+                  className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 text-sm"
+                >
+                  Ver todas
+                </button>
+              </div>
+            </div>
+
+            {/* List of today's reviews */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {pendingReviews.slice(0, 4).map((review) => {
+                const isOverdue = review.status === 'OVERDUE';
+
+                return (
+                  <div
+                    key={review.id}
+                    className={`bg-white rounded-lg shadow p-4 ${
+                      isOverdue ? 'border-l-4 border-red-500' : ''
+                    }`}
+                  >
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <h3 className="font-medium text-gray-900">
+                          {review.competency.name}
+                        </h3>
+                        <p
+                          className={`text-sm mt-1 ${
+                            isOverdue ? 'text-red-600 font-medium' : 'text-gray-500'
+                          }`}
+                        >
+                          {isOverdue
+                            ? `Atrasada (${formatDate(review.dueAt)})`
+                            : `Prazo: ${formatDate(review.dueAt)}`}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => router.push(`/revisoes/${review.id}`)}
+                        className="ml-2 px-3 py-1 bg-purple-600 text-white rounded text-sm hover:bg-purple-700"
+                      >
+                        Fazer Revisao
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Pending assignments alert */}
         {pendingAssignments.length > 0 && (
@@ -224,6 +306,26 @@ export default function Home() {
               Veja e baixe seus certificados
             </p>
           </button>
+
+          <button
+            onClick={() => router.push('/revisoes')}
+            className="bg-white rounded-lg shadow p-6 text-left hover:shadow-md transition-shadow"
+          >
+            <h3 className="text-lg font-semibold text-gray-900">Minhas Revisoes</h3>
+            <p className="text-gray-600 text-sm mt-1">
+              Revise suas competencias periodicamente
+            </p>
+          </button>
+
+          <button
+            onClick={() => router.push('/suporte')}
+            className="bg-white rounded-lg shadow p-6 text-left hover:shadow-md transition-shadow"
+          >
+            <h3 className="text-lg font-semibold text-gray-900">Suporte</h3>
+            <p className="text-gray-600 text-sm mt-1">
+              Abra um chamado de suporte
+            </p>
+          </button>
         </div>
 
         {/* Role-specific actions */}
@@ -296,6 +398,27 @@ export default function Home() {
               >
                 <h3 className="font-medium text-green-900">Certificados</h3>
                 <p className="text-green-700 text-sm">Ver certificados emitidos</p>
+              </button>
+              <button
+                onClick={() => router.push('/gestor/competencias')}
+                className="bg-green-50 rounded-lg p-4 text-left hover:bg-green-100 transition-colors"
+              >
+                <h3 className="font-medium text-green-900">Competencias</h3>
+                <p className="text-green-700 text-sm">Gerenciar competencias</p>
+              </button>
+              <button
+                onClick={() => router.push('/gestor/risco')}
+                className="bg-green-50 rounded-lg p-4 text-left hover:bg-green-100 transition-colors"
+              >
+                <h3 className="font-medium text-green-900">Mapa de Risco</h3>
+                <p className="text-green-700 text-sm">Ver estados de competencias</p>
+              </button>
+              <button
+                onClick={() => router.push('/gestor/tickets')}
+                className="bg-green-50 rounded-lg p-4 text-left hover:bg-green-100 transition-colors"
+              >
+                <h3 className="font-medium text-green-900">Chamados</h3>
+                <p className="text-green-700 text-sm">Gerenciar suporte</p>
               </button>
             </div>
           </div>

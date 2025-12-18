@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { api } from '@/lib/api';
 
 interface Option {
@@ -215,14 +216,24 @@ export default function QuizEditorPage() {
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-4xl mx-auto px-4">
         <div className="mb-6">
-          <button
-            onClick={() => router.back()}
-            className="text-blue-600 hover:underline mb-4 inline-block"
-          >
-            &larr; Voltar
-          </button>
-          <h1 className="text-2xl font-bold text-gray-900">Editor de Quiz</h1>
-          <p className="text-gray-600">{lesson?.title}</p>
+          <div className="flex justify-between items-start">
+            <div>
+              <button
+                onClick={() => router.back()}
+                className="text-blue-600 hover:underline mb-4 inline-block"
+              >
+                &larr; Voltar
+              </button>
+              <h1 className="text-2xl font-bold text-gray-900">Editor de Quiz</h1>
+              <p className="text-gray-600">{lesson?.title}</p>
+            </div>
+            <Link
+              href={`/professor/aulas/${lessonId}/competencias`}
+              className="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700"
+            >
+              Gerenciar Competencias
+            </Link>
+          </div>
         </div>
 
         {error && (

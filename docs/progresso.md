@@ -591,3 +591,127 @@ VideoProgress {
 - `apps/web/src/app/gestor/tickets/page.tsx`
 - `apps/web/src/app/notificacoes/page.tsx`
 - `apps/web/src/components/Header.tsx`
+
+---
+
+## Bloco 10B - Competencias no Tempo, Revisoes 7/30/90, Mapa de Risco
+**Status**: Concluido
+
+### O que foi feito
+
+#### Schema Prisma
+- **Competency**: competencias do instituto com nome e descricao
+- **LessonCompetency**: liga competencias a aulas (N:N)
+- **CompetencyQuestionBank**: banco de questoes por competencia
+- **CompetencyReviewSchedule**: agendamentos de revisao (7/30/90 dias)
+- **UserCompetencyState**: estado da competencia do usuario (GREEN/YELLOW/ORANGE/RED)
+- Novos tipos: ReviewScheduleStatus (DUE/DONE/OVERDUE), CompetencyState
+- NotificationType expandido: REVIEW_DUE, COMPETENCY_DEGRADED
+
+#### API (NestJS)
+
+- **CompetenciesModule**:
+  - POST `/competencies` - Criar competencia (gestor)
+  - GET `/competencies` - Listar competencias do instituto
+  - GET `/competencies/:id` - Detalhes com aulas e questoes
+  - PATCH `/competencies/:id` - Atualizar competencia
+  - DELETE `/competencies/:id` - Remover competencia
+  - POST `/lessons/:lessonId/competencies` - Ligar competencias a aula
+  - GET `/lessons/:lessonId/competencies` - Competencias da aula
+  - POST `/competencies/:id/questions` - Adicionar questao ao banco
+  - DELETE `/competencies/:id/questions/:questionId` - Remover questao
+  - GET `/competencies/:id/questions` - Banco de questoes
+
+- **ReviewsModule**:
+  - GET `/me/reviews` - Revisoes pendentes do aluno
+  - GET `/me/competencies` - Estados de competencias do aluno
+  - POST `/reviews/:scheduleId/start` - Iniciar revisao (sorteia 3-5 questoes)
+  - POST `/reviews/:scheduleId/submit` - Enviar revisao
+  - GET `/gestor/risk-map?groupBy=UNIT|PROFESSION|UNIT_PROFESSION` - Mapa de risco agregado
+  - GET `/gestor/risk-map/export.csv` - Exportar CSV do mapa
+
+#### Integracao com Quiz
+- Quando LessonApproval e criado (aluno aprovado no quiz da aula):
+  - Para cada competencia ligada a aula, cria schedules em 7, 30 e 90 dias
+  - Cria ou atualiza UserCompetencyState como GREEN
+
+#### Web (Next.js)
+- `/gestor/competencias` - CRUD de competencias do instituto
+- `/professor/aulas/[id]/competencias` - Ligar competencias a uma aula
+- `/revisoes` - Lista de revisoes pendentes e estados de competencias
+- `/revisoes/[scheduleId]` - Executar revisao com questoes do banco
+- `/gestor/risco` - Mapa de risco com tabs (Unidade/Profissao/Ambos)
+- Home: Secao "Revisoes de hoje" + cards de acesso rapido
+
+### Regras de Estado de Competencia
+- **GREEN (>=80%)**: Competencia dominada
+- **YELLOW (60-79%)**: Bom, mas precisa revisar
+- **ORANGE (40-59%)**: Atencao, revisar logo
+- **RED (<40%)**: Critico, precisa estudar novamente
+
+### Degradacao Automatica
+- Revisao nao feita: vira OVERDUE apos dueAt
+- Apos 7 dias em OVERDUE: estado degrada automaticamente
+  - GREEN -> YELLOW -> ORANGE -> RED
+
+### Mapa de Risco (Gestor)
+- Agrupamento por Unidade, Profissao ou ambos
+- Mostra contagem de usuarios por estado (sem identificar individuos)
+- Exportacao CSV para analise
+
+### Como testar
+
+1. **Criar competencia**:
+   - Acesse `/gestor/competencias`
+   - Clique em "+ Nova Competencia"
+   - Preencha nome e descricao
+
+2. **Ligar competencia a aula**:
+   - Acesse `/professor/aulas/[id]/quiz-editor`
+   - Clique em "Gerenciar Competencias"
+   - Selecione as competencias e salve
+
+3. **Aprovar em aula com competencia**:
+   - Complete o video
+   - Passe no quiz
+   - Schedules de revisao serao criados automaticamente
+
+4. **Fazer revisao**:
+   - Acesse `/revisoes`
+   - Clique em "Fazer Revisao"
+   - Responda as questoes
+   - Veja seu novo estado
+
+5. **Ver mapa de risco**:
+   - Acesse `/gestor/risco`
+   - Alterne entre abas para diferentes agrupamentos
+   - Exporte CSV se necessario
+
+### Endpoints da API (Bloco 10B)
+| Metodo | Rota | Autenticacao | Descricao |
+|--------|------|--------------|-----------|
+| POST | /competencies | JWT (GESTOR+) | Criar competencia |
+| GET | /competencies | JWT | Listar competencias |
+| GET | /competencies/:id | JWT | Detalhes competencia |
+| PATCH | /competencies/:id | JWT (GESTOR+) | Atualizar |
+| DELETE | /competencies/:id | JWT (GESTOR+) | Remover |
+| POST | /lessons/:id/competencies | JWT (GESTOR+) | Ligar a aula |
+| GET | /lessons/:id/competencies | JWT | Ver da aula |
+| POST | /competencies/:id/questions | JWT (GESTOR+) | Add questao |
+| DELETE | /competencies/:id/questions/:qid | JWT (GESTOR+) | Remover questao |
+| GET | /competencies/:id/questions | JWT | Banco de questoes |
+| GET | /me/reviews | JWT | Minhas revisoes |
+| GET | /me/competencies | JWT | Meus estados |
+| POST | /reviews/:id/start | JWT | Iniciar revisao |
+| POST | /reviews/:id/submit | JWT | Enviar revisao |
+| GET | /gestor/risk-map | JWT (GESTOR+) | Mapa de risco |
+| GET | /gestor/risk-map/export.csv | JWT (GESTOR+) | Exportar CSV |
+
+### Arquivos criados
+- `apps/api/src/competencies/*` - Modulo de competencias
+- `apps/api/src/reviews/*` - Modulo de revisoes
+- `apps/web/src/app/gestor/competencias/page.tsx`
+- `apps/web/src/app/professor/aulas/[id]/competencias/page.tsx`
+- `apps/web/src/app/revisoes/page.tsx`
+- `apps/web/src/app/revisoes/[scheduleId]/page.tsx`
+- `apps/web/src/app/gestor/risco/page.tsx`

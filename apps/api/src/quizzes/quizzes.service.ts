@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { CompetenciesService } from '../competencies/competencies.service';
 import { CreateQuizDto } from './dto/create-quiz.dto';
 import { CreateQuestionDto, UpdateQuestionDto } from './dto/create-question.dto';
 import { CreateOptionDto, UpdateOptionDto } from './dto/create-option.dto';
@@ -7,7 +8,10 @@ import { SubmitQuizDto } from './dto/submit-quiz.dto';
 
 @Injectable()
 export class QuizzesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private competenciesService: CompetenciesService,
+  ) {}
 
   // ============================================
   // CRUD QUIZ
@@ -492,15 +496,22 @@ export class QuizzesService {
 
       // Se passou, criar aprovação
       if (passed) {
-        await tx.lessonApproval.create({
-          data: {
-            userId,
-            lessonId: attempt.lessonId,
-            quizAttemptId: attemptId,
-            score,
-            cycleNumber: attempt.cycleNumber,
-          },
+        // Verificar se já existe aprovação (não deve criar schedules duplicados)
+        const existingApproval = await tx.lessonApproval.findUnique({
+          where: { userId_lessonId: { userId, lessonId: attempt.lessonId } },
         });
+
+        if (!existingApproval) {
+          await tx.lessonApproval.create({
+            data: {
+              userId,
+              lessonId: attempt.lessonId,
+              quizAttemptId: attemptId,
+              score,
+              cycleNumber: attempt.cycleNumber,
+            },
+          });
+        }
       }
 
       // Se REQUIRES_REWATCH, resetar progresso do vídeo
@@ -515,6 +526,20 @@ export class QuizzesService {
         });
       }
     });
+
+    // Criar schedules de revisão de competências (fora da transaction)
+    if (passed) {
+      try {
+        await this.competenciesService.createReviewSchedulesForApproval(
+          userId,
+          attempt.lessonId,
+          new Date(),
+        );
+      } catch (error) {
+        // Log but don't fail - schedules can be created later
+        console.error('Failed to create competency review schedules:', error);
+      }
+    }
 
     return {
       attemptId,

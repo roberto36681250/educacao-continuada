@@ -71,22 +71,24 @@ model User {
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
 
-  institute            Institute              @relation(fields: [instituteId], references: [id])
-  unitAssignments      UserUnitAssignment[]
-  videoProgress        VideoProgress[]
-  quizAttempts         QuizAttempt[]
-  competencies         UserCompetency[]
-  auditLogs            AuditLog[]
-  createdInvites       InviteToken[]
-  createdAssignments   Assignment[]           @relation("AssignmentCreator")
-  assignmentStatuses   UserAssignmentStatus[]
-  certificates         Certificate[]
-  createdTickets       Ticket[]               @relation("TicketCreator")
-  assignedTickets      Ticket[]               @relation("TicketAssignee")
-  ticketMessages       TicketMessage[]
-  ticketAttachments    TicketAttachment[]
-  createdFAQs          FAQ[]
-  notifications        Notification[]
+  institute              Institute                  @relation(fields: [instituteId], references: [id])
+  unitAssignments        UserUnitAssignment[]
+  videoProgress          VideoProgress[]
+  quizAttempts           QuizAttempt[]
+  competencies           UserCompetency[]
+  competencyStates       UserCompetencyState[]
+  reviewSchedules        CompetencyReviewSchedule[]
+  auditLogs              AuditLog[]
+  createdInvites         InviteToken[]
+  createdAssignments     Assignment[]               @relation("AssignmentCreator")
+  assignmentStatuses     UserAssignmentStatus[]
+  certificates           Certificate[]
+  createdTickets         Ticket[]                   @relation("TicketCreator")
+  assignedTickets        Ticket[]                   @relation("TicketAssignee")
+  ticketMessages         TicketMessage[]
+  ticketAttachments      TicketAttachment[]
+  createdFAQs            FAQ[]
+  notifications          Notification[]
 
   @@map("users")
 }
@@ -130,7 +132,6 @@ model Course {
 
   institute    Institute     @relation(fields: [instituteId], references: [id])
   modules      Module[]
-  competencies Competency[]
   tickets      Ticket[]
   assignments  Assignment[]
   certificates Certificate[]
@@ -168,10 +169,11 @@ model Lesson {
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
-  module        Module          @relation(fields: [moduleId], references: [id])
-  quiz          Quiz?
-  videoProgress VideoProgress[]
-  tickets       Ticket[]
+  module             Module             @relation(fields: [moduleId], references: [id])
+  quiz               Quiz?
+  videoProgress      VideoProgress[]
+  tickets            Ticket[]
+  lessonCompetencies LessonCompetency[]
 
   @@map("lessons")
 }
@@ -223,7 +225,7 @@ model Quiz {
 
 model Question {
   id                    String       @id @default(cuid())
-  quizId                String
+  quizId                String?      // Nullable para questões do banco de competência
   text                  String
   type                  QuestionType @default(MULTIPLE_CHOICE)
   justificationRequired Boolean      @default(false) // Exige justificativa? (para CASE)
@@ -231,9 +233,10 @@ model Question {
   createdAt             DateTime     @default(now())
   updatedAt             DateTime     @updatedAt
 
-  quiz    Quiz             @relation(fields: [quizId], references: [id], onDelete: Cascade)
-  options Option[]
-  answers QuestionAnswer[]
+  quiz                   Quiz?                    @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  options                Option[]
+  answers                QuestionAnswer[]
+  competencyQuestionBank CompetencyQuestionBank[]
 
   @@map("questions")
 }
@@ -318,23 +321,103 @@ model QuestionAnswer {
 }
 
 // ============================================
-// COMPETÊNCIAS
+// COMPETÊNCIAS E REVISÕES
 // ============================================
 
 model Competency {
   id          String   @id @default(cuid())
+  instituteId String
   name        String
   description String?
-  courseId    String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  course          Course?          @relation(fields: [courseId], references: [id])
-  userCompetencies UserCompetency[]
+  lessonCompetencies     LessonCompetency[]
+  questionBank           CompetencyQuestionBank[]
+  reviewSchedules        CompetencyReviewSchedule[]
+  userCompetencyStates   UserCompetencyState[]
 
   @@map("competencies")
 }
 
+// Liga uma aula a competências
+model LessonCompetency {
+  id           String @id @default(cuid())
+  lessonId     String
+  competencyId String
+  createdAt    DateTime @default(now())
+
+  lesson     Lesson     @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  competency Competency @relation(fields: [competencyId], references: [id], onDelete: Cascade)
+
+  @@unique([lessonId, competencyId])
+  @@map("lesson_competencies")
+}
+
+// Banco de questões para revisões de competência
+model CompetencyQuestionBank {
+  id           String   @id @default(cuid())
+  competencyId String
+  questionId   String
+  createdAt    DateTime @default(now())
+
+  competency Competency @relation(fields: [competencyId], references: [id], onDelete: Cascade)
+  question   Question   @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([competencyId, questionId])
+  @@map("competency_question_bank")
+}
+
+// Agendamento de revisões (7, 30, 90 dias)
+model CompetencyReviewSchedule {
+  id           String               @id @default(cuid())
+  userId       String
+  competencyId String
+  dueAt        DateTime
+  status       ReviewScheduleStatus @default(DUE)
+  doneAt       DateTime?
+  score        Int?
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+
+  user       User       @relation(fields: [userId], references: [id])
+  competency Competency @relation(fields: [competencyId], references: [id])
+
+  @@map("competency_review_schedules")
+}
+
+enum ReviewScheduleStatus {
+  DUE
+  DONE
+  OVERDUE
+}
+
+// Estado atual da competência do usuário
+model UserCompetencyState {
+  id           String          @id @default(cuid())
+  userId       String
+  competencyId String
+  state        CompetencyState @default(GREEN)
+  lastReviewAt DateTime?
+  nextDueAt    DateTime?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  user       User       @relation(fields: [userId], references: [id])
+  competency Competency @relation(fields: [competencyId], references: [id])
+
+  @@unique([userId, competencyId])
+  @@map("user_competency_states")
+}
+
+enum CompetencyState {
+  GREEN
+  YELLOW
+  ORANGE
+  RED
+}
+
+// DEPRECATED: Manter para compatibilidade, mas usar UserCompetencyState
 model UserCompetency {
   id           String          @id @default(cuid())
   userId       String
@@ -345,7 +428,6 @@ model UserCompetency {
   updatedAt    DateTime        @updatedAt
 
   user       User       @relation(fields: [userId], references: [id])
-  competency Competency @relation(fields: [competencyId], references: [id])
 
   @@unique([userId, competencyId])
   @@map("user_competencies")
@@ -491,6 +573,8 @@ enum NotificationType {
   TICKET_STATUS
   ASSIGNMENT_NEW
   CERTIFICATE_ISSUED
+  REVIEW_DUE
+  COMPETENCY_DEGRADED
 }
 
 // ============================================
