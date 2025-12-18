@@ -212,20 +212,26 @@ model Quiz {
 }
 
 model Question {
-  id                    String   @id @default(cuid())
+  id                    String       @id @default(cuid())
   quizId                String
   text                  String
-  isCase                Boolean  @default(false) // É caso clínico?
-  justificationRequired Boolean  @default(false) // Exige justificativa?
-  sortOrder             Int      @default(0)
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  type                  QuestionType @default(MULTIPLE_CHOICE)
+  justificationRequired Boolean      @default(false) // Exige justificativa? (para CASE)
+  sortOrder             Int          @default(0)
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
 
-  quiz    Quiz                @relation(fields: [quizId], references: [id])
+  quiz    Quiz             @relation(fields: [quizId], references: [id], onDelete: Cascade)
   options Option[]
   answers QuestionAnswer[]
 
   @@map("questions")
+}
+
+enum QuestionType {
+  MULTIPLE_CHOICE  // Uma resposta correta
+  MULTIPLE_SELECT  // Múltiplas respostas corretas
+  CASE             // Caso clínico com justificativa
 }
 
 model Option {
@@ -237,8 +243,7 @@ model Option {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  question Question         @relation(fields: [questionId], references: [id])
-  answers  QuestionAnswer[]
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
 
   @@map("options")
 }
@@ -247,6 +252,7 @@ model QuizAttempt {
   id            String            @id @default(cuid())
   userId        String
   quizId        String
+  lessonId      String            // Referência direta à aula para facilitar queries
   attemptNumber Int               // Tentativa dentro do ciclo (1, 2 ou 3)
   cycleNumber   Int               @default(1) // Ciclo de tentativas
   score         Int?              // Nota obtida (0-100)
@@ -264,6 +270,21 @@ model QuizAttempt {
   @@map("quiz_attempts")
 }
 
+// Registro de aprovação da aula (após passar no quiz)
+model LessonApproval {
+  id          String   @id @default(cuid())
+  userId      String
+  lessonId    String
+  quizAttemptId String @unique // Tentativa que aprovou
+  score       Int      // Nota obtida
+  cycleNumber Int      // Em qual ciclo passou
+  passedAt    DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  @@unique([userId, lessonId])
+  @@map("lesson_approvals")
+}
+
 enum QuizAttemptStatus {
   IN_PROGRESS
   PASSED
@@ -272,17 +293,16 @@ enum QuizAttemptStatus {
 }
 
 model QuestionAnswer {
-  id            String   @id @default(cuid())
-  attemptId     String
-  questionId    String
-  selectedOptionId String?
-  justification String?  // Justificativa para casos clínicos
-  isCorrect     Boolean?
-  createdAt     DateTime @default(now())
+  id                String   @id @default(cuid())
+  attemptId         String
+  questionId        String
+  selectedOptionIds Json     @default("[]") // Array de IDs das opções selecionadas
+  justificationText String?  // Justificativa para casos clínicos
+  isCorrect         Boolean?
+  createdAt         DateTime @default(now())
 
-  attempt        QuizAttempt @relation(fields: [attemptId], references: [id])
-  question       Question    @relation(fields: [questionId], references: [id])
-  selectedOption Option?     @relation(fields: [selectedOptionId], references: [id])
+  attempt  QuizAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  question Question    @relation(fields: [questionId], references: [id])
 
   @@map("question_answers")
 }

@@ -624,13 +624,22 @@ export default function ProfessorCursoPage() {
                                   )}
                                 </div>
                               </div>
-                              <a
-                                href={`/aula/${lesson.id}`}
-                                className="text-blue-600 hover:underline text-sm"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                Ver aula
-                              </a>
+                              <div className="flex gap-3">
+                                <a
+                                  href={`/professor/aulas/${lesson.id}/quiz-editor`}
+                                  className="text-purple-600 hover:underline text-sm"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  Quiz
+                                </a>
+                                <a
+                                  href={`/aula/${lesson.id}`}
+                                  className="text-blue-600 hover:underline text-sm"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  Ver aula
+                                </a>
+                              </div>
                             </li>
                           ))}
                         </ul>
