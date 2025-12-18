@@ -9,9 +9,15 @@ export class CoursesService {
   constructor(private prisma: PrismaService) {}
 
   async findByInstitute(instituteId: string, includeUnpublished = false) {
-    const where: { instituteId: string; status?: ContentStatus } = { instituteId };
+    const where: {
+      instituteId: string;
+      status?: ContentStatus;
+      currentPublishedVersionId?: { not: null };
+    } = { instituteId };
+
     if (!includeUnpublished) {
-      where.status = ContentStatus.PUBLISHED;
+      // Aluno so ve cursos com versao publicada
+      where.currentPublishedVersionId = { not: null };
     }
 
     return this.prisma.course.findMany({
@@ -23,6 +29,7 @@ export class CoursesService {
         status: true,
         sortOrder: true,
         createdAt: true,
+        currentPublishedVersionId: true,
         _count: {
           select: { modules: true },
         },

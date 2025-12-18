@@ -8,7 +8,7 @@ interface ApiOptions {
   headers?: Record<string, string>;
 }
 
-export async function api<T>(endpoint: string, options: ApiOptions = {}): Promise<T> {
+async function apiBase<T>(endpoint: string, options: ApiOptions = {}): Promise<T> {
   const token = Cookies.get('token');
 
   const headers: Record<string, string> = {
@@ -33,6 +33,14 @@ export async function api<T>(endpoint: string, options: ApiOptions = {}): Promis
 
   return response.json();
 }
+
+export const api = {
+  get: <T>(endpoint: string) => apiBase<T>(endpoint, { method: 'GET' }),
+  post: <T>(endpoint: string, body?: unknown) => apiBase<T>(endpoint, { method: 'POST', body }),
+  patch: <T>(endpoint: string, body?: unknown) => apiBase<T>(endpoint, { method: 'PATCH', body }),
+  put: <T>(endpoint: string, body?: unknown) => apiBase<T>(endpoint, { method: 'PUT', body }),
+  delete: <T>(endpoint: string) => apiBase<T>(endpoint, { method: 'DELETE' }),
+};
 
 export function setToken(token: string) {
   Cookies.set('token', token, { expires: 7 });

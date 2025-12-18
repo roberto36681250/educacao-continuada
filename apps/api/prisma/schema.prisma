@@ -123,23 +123,50 @@ model UserUnitAssignment {
 // ============================================
 
 model Course {
-  id            String        @id @default(cuid())
-  title         String
-  description   String?
-  instituteId   String
-  status        ContentStatus @default(DRAFT)
-  sortOrder     Int           @default(0)
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  id                        String        @id @default(cuid())
+  title                     String
+  description               String?
+  instituteId               String
+  status                    ContentStatus @default(DRAFT)
+  sortOrder                 Int           @default(0)
+  currentDraftVersionId     String?       // Versão DRAFT atual
+  currentPublishedVersionId String?       // Versão PUBLISHED atual (visível para alunos)
+  metadata                  Json?         // Para rastreio de importação: { externalId, importBatchId }
+  createdAt                 DateTime      @default(now())
+  updatedAt                 DateTime      @updatedAt
 
-  institute    Institute     @relation(fields: [instituteId], references: [id])
+  institute    Institute       @relation(fields: [instituteId], references: [id])
   modules      Module[]
   tickets      Ticket[]
   assignments  Assignment[]
   certificates Certificate[]
   faqs         FAQ[]
+  versions     CourseVersion[]
 
   @@map("courses")
+}
+
+model CourseVersion {
+  id              String              @id @default(cuid())
+  instituteId     String
+  courseId        String
+  versionNumber   Int
+  status          CourseVersionStatus @default(DRAFT)
+  createdByUserId String
+  publishedAt     DateTime?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, versionNumber])
+  @@map("course_versions")
+}
+
+enum CourseVersionStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
 }
 
 model Module {
@@ -149,6 +176,7 @@ model Module {
   courseId  String
   status    ContentStatus @default(DRAFT)
   sortOrder Int           @default(0)
+  metadata  Json?         // Para rastreio de importação: { externalId, importBatchId }
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
 
@@ -170,6 +198,7 @@ model Lesson {
   tomorrowChecklist String?       // O que fazer amanhã no plantão
   status            ContentStatus @default(DRAFT)
   sortOrder         Int           @default(0)
+  metadata          Json?         // Para rastreio de importação: { externalId, importBatchId }
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
 
@@ -232,6 +261,7 @@ model Quiz {
   lessonId  String   @unique
   title     String?
   minScore  Int      @default(70) // Nota mínima para aprovação
+  metadata  Json?    // Para rastreio de importação: { externalId, importBatchId }
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -249,6 +279,7 @@ model Question {
   type                  QuestionType @default(MULTIPLE_CHOICE)
   justificationRequired Boolean      @default(false) // Exige justificativa? (para CASE)
   sortOrder             Int          @default(0)
+  metadata              Json?        // Para rastreio de importação: { externalId, importBatchId }
   createdAt             DateTime     @default(now())
   updatedAt             DateTime     @updatedAt
 
@@ -272,6 +303,7 @@ model Option {
   text       String
   isCorrect  Boolean  @default(false)
   sortOrder  Int      @default(0)
+  metadata   Json?    // Para rastreio de importação: { externalId, importBatchId }
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
@@ -348,6 +380,7 @@ model Competency {
   instituteId String
   name        String
   description String?
+  metadata    Json?    // Para rastreio de importação: { externalId, importBatchId }
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -553,6 +586,7 @@ model FAQ {
   answer          String
   status          FAQStatus @default(DRAFT)
   createdByUserId String
+  metadata        Json?     // Para rastreio de importação: { externalId, importBatchId }
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 

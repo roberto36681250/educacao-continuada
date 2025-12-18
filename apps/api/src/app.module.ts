@@ -22,6 +22,7 @@ import { SearchModule } from './search/search.module';
 import { HomeModule } from './home/home.module';
 import { AnonymizationRulesModule } from './anonymization-rules/anonymization-rules.module';
 import { CasesModule } from './cases/cases.module';
+import { ContentManagementModule } from './content-management/content-management.module';
 
 @Module({
   imports: [
@@ -47,6 +48,7 @@ import { CasesModule } from './cases/cases.module';
     HomeModule,
     AnonymizationRulesModule,
     CasesModule,
+    ContentManagementModule,
   ],
   controllers: [AppController],
   providers: [],
