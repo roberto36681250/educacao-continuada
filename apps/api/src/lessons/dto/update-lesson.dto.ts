@@ -36,4 +36,14 @@ export class UpdateLessonDto {
   @Min(0)
   @IsOptional()
   sortOrder?: number;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(5000)
+  practicalSummary?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(5000)
+  tomorrowChecklist?: string;
 }

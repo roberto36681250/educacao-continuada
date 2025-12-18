@@ -89,6 +89,7 @@ model User {
   ticketAttachments      TicketAttachment[]
   createdFAQs            FAQ[]
   notifications          Notification[]
+  lessonLastSeen         LessonLastSeen[]
 
   @@map("users")
 }
@@ -157,25 +158,42 @@ model Module {
 }
 
 model Lesson {
-  id              String        @id @default(cuid())
-  title           String
-  description     String?
-  moduleId        String
-  youtubeVideoId  String?       // ID do vídeo no YouTube (não listado)
-  durationSeconds Int           @default(0) // Duração do vídeo em segundos
-  minWatchPercent Int           @default(90) // % mínimo para liberar quiz
-  status          ContentStatus @default(DRAFT)
-  sortOrder       Int           @default(0)
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  id                String        @id @default(cuid())
+  title             String
+  description       String?
+  moduleId          String
+  youtubeVideoId    String?       // ID do vídeo no YouTube (não listado)
+  durationSeconds   Int           @default(0) // Duração do vídeo em segundos
+  minWatchPercent   Int           @default(90) // % mínimo para liberar quiz
+  practicalSummary  String?       // Resumo prático da aula
+  tomorrowChecklist String?       // O que fazer amanhã no plantão
+  status            ContentStatus @default(DRAFT)
+  sortOrder         Int           @default(0)
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
 
   module             Module             @relation(fields: [moduleId], references: [id])
   quiz               Quiz?
   videoProgress      VideoProgress[]
   tickets            Ticket[]
   lessonCompetencies LessonCompetency[]
+  lastSeenBy         LessonLastSeen[]
 
   @@map("lessons")
+}
+
+// Registro de última aula acessada
+model LessonLastSeen {
+  id       String   @id @default(cuid())
+  userId   String
+  lessonId String
+  seenAt   DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id])
+  lesson Lesson @relation(fields: [lessonId], references: [id])
+
+  @@unique([userId, lessonId])
+  @@map("lesson_last_seen")
 }
 
 enum ContentStatus {

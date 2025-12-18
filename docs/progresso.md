@@ -715,3 +715,90 @@ VideoProgress {
 - `apps/web/src/app/revisoes/page.tsx`
 - `apps/web/src/app/revisoes/[scheduleId]/page.tsx`
 - `apps/web/src/app/gestor/risco/page.tsx`
+
+---
+
+## Bloco 10A - UX, Busca Global, Home Inteligente, Retomar Aula
+**Status**: Concluido
+
+### O que foi feito
+
+#### Schema Prisma
+- **LessonLastSeen**: Registro de ultima aula acessada pelo usuario
+- **Lesson**: Novos campos `practicalSummary` e `tomorrowChecklist`
+
+#### API (NestJS)
+
+- **SearchModule**:
+  - GET `/search?q=` - Busca global em cursos, aulas, FAQs e competencias
+  - Filtro por permissao: aluno ve so PUBLISHED, gestor ve DRAFT tambem
+  - Retorna max 10 resultados por categoria
+
+- **HomeModule**:
+  - GET `/me/home` - Dados agregados para home inteligente
+  - **Aluno**: pendingAssignments, dueReviews, continueLesson, recentCertificates
+  - **Gestor**: summary (activeAssignments, openTickets, onTimePercentage, redCompetencies), recentTickets
+
+- **LessonsModule** atualizado:
+  - GET `/lessons/:id` agora registra LessonLastSeen automaticamente
+  - Novos campos retornados: practicalSummary, tomorrowChecklist
+
+#### Web (Next.js)
+
+- **SearchCommand**: Command palette estilo Ctrl+K
+  - Busca em tempo real com debounce
+  - Navegacao por teclado (setas + Enter)
+  - Resultados agrupados por tipo
+  - Abre modal sobre qualquer pagina
+
+- **Home** atualizada:
+  - **Aluno**:
+    - Card "Continuar de onde parou" com aula e progresso
+    - Alertas de revisoes pendentes
+    - Alertas de atribuicoes pendentes
+    - Certificados recentes
+  - **Gestor**:
+    - Cards de metricas do mes (atribuicoes ativas, chamados abertos, % no prazo, competencias em risco)
+    - Lista de chamados recentes
+
+- **Pagina de aula** atualizada:
+  - Card "Resumo Pratico" (se preenchido)
+  - Card "O que fazer amanha no plantao" (se preenchido)
+
+- **Componentes reutilizaveis**:
+  - `EmptyState`: Estado vazio padronizado com icone, titulo, descricao e acao
+  - `LoadingState`: Estados de carregamento (spinner, skeleton, dots)
+
+### Como usar busca global
+1. Clique no botao de busca no header ou pressione Ctrl+K (Cmd+K no Mac)
+2. Digite pelo menos 2 caracteres
+3. Use setas para navegar, Enter para abrir
+4. ESC para fechar
+
+### Como adicionar resumo pratico a uma aula
+1. Acesse `/professor/cursos/[id]`
+2. Edite uma aula
+3. Preencha os campos "Resumo Pratico" e "O que fazer amanha"
+4. Salve
+
+### Como retomar aula do ponto salvo
+1. Assista uma aula parcialmente
+2. Volte a home
+3. Se houver aula incompleta, aparece o card "Continuar de onde parou"
+4. Clique para ir direto a aula
+
+### Endpoints da API (Bloco 10A)
+| Metodo | Rota | Autenticacao | Descricao |
+|--------|------|--------------|-----------|
+| GET | /search?q= | JWT | Busca global |
+| GET | /me/home | JWT | Dados da home |
+
+### Arquivos criados
+- `apps/api/src/search/*` - Modulo de busca
+- `apps/api/src/home/*` - Modulo de home
+- `apps/web/src/components/SearchCommand.tsx`
+- `apps/web/src/components/EmptyState.tsx`
+- `apps/web/src/components/LoadingState.tsx`
+- `apps/web/src/app/page.tsx` (atualizado)
+- `apps/web/src/app/aula/[id]/page.tsx` (atualizado)
+- `apps/web/src/components/Header.tsx` (atualizado)

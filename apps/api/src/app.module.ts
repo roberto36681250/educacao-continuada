@@ -18,6 +18,8 @@ import { FAQModule } from './faq/faq.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { CompetenciesModule } from './competencies/competencies.module';
 import { ReviewsModule } from './reviews/reviews.module';
+import { SearchModule } from './search/search.module';
+import { HomeModule } from './home/home.module';
 
 @Module({
   imports: [
@@ -39,6 +41,8 @@ import { ReviewsModule } from './reviews/reviews.module';
     NotificationsModule,
     CompetenciesModule,
     ReviewsModule,
+    SearchModule,
+    HomeModule,
   ],
   controllers: [AppController],
   providers: [],

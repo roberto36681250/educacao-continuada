@@ -11,6 +11,8 @@ interface Lesson {
   youtubeVideoId: string | null;
   durationSeconds: number;
   minWatchPercent: number;
+  practicalSummary: string | null;
+  tomorrowChecklist: string | null;
   module: {
     id: string;
     title: string;
@@ -381,6 +383,46 @@ export default function AulaPage() {
           <div className="bg-gray-800 rounded-lg p-4 mb-6">
             <h2 className="text-white font-medium mb-2">Sobre esta aula</h2>
             <p className="text-gray-300">{lesson.description}</p>
+          </div>
+        )}
+
+        {/* Practical Summary and Tomorrow's Checklist */}
+        {(lesson?.practicalSummary || lesson?.tomorrowChecklist) && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            {/* Resumo Pratico */}
+            {lesson?.practicalSummary && (
+              <div className="bg-gradient-to-br from-blue-900 to-blue-800 rounded-lg p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-2xl">📋</span>
+                  <h2 className="text-white font-semibold">Resumo Pratico</h2>
+                </div>
+                <div className="text-blue-100 text-sm whitespace-pre-wrap">
+                  {lesson.practicalSummary}
+                </div>
+              </div>
+            )}
+
+            {/* O que fazer amanha */}
+            {lesson?.tomorrowChecklist && (
+              <div className="bg-gradient-to-br from-green-900 to-green-800 rounded-lg p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-2xl">✅</span>
+                  <h2 className="text-white font-semibold">O que fazer amanha no plantao</h2>
+                </div>
+                <div className="text-green-100 text-sm">
+                  {lesson.tomorrowChecklist.split('\n').map((item, idx) => {
+                    const trimmed = item.trim();
+                    if (!trimmed) return null;
+                    return (
+                      <div key={idx} className="flex items-start gap-2 mb-2">
+                        <span className="text-green-400 mt-0.5">•</span>
+                        <span>{trimmed.replace(/^[-•]\s*/, '')}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         )}
 

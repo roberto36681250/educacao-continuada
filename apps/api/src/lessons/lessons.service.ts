@@ -26,6 +26,8 @@ export class LessonsService {
         minWatchPercent: true,
         status: true,
         sortOrder: true,
+        practicalSummary: true,
+        tomorrowChecklist: true,
         createdAt: true,
       },
       orderBy: { sortOrder: 'asc' },
@@ -82,6 +84,8 @@ export class LessonsService {
         minWatchPercent: dto.minWatchPercent || 90,
         status: dto.status || ContentStatus.DRAFT,
         sortOrder: dto.sortOrder ?? (maxOrder._max.sortOrder ?? 0) + 1,
+        practicalSummary: dto.practicalSummary,
+        tomorrowChecklist: dto.tomorrowChecklist,
       },
       select: {
         id: true,
@@ -92,6 +96,8 @@ export class LessonsService {
         minWatchPercent: true,
         status: true,
         sortOrder: true,
+        practicalSummary: true,
+        tomorrowChecklist: true,
         createdAt: true,
       },
     });
@@ -113,6 +119,8 @@ export class LessonsService {
         minWatchPercent: dto.minWatchPercent,
         status: dto.status,
         sortOrder: dto.sortOrder,
+        practicalSummary: dto.practicalSummary,
+        tomorrowChecklist: dto.tomorrowChecklist,
       },
       select: {
         id: true,
@@ -123,6 +131,8 @@ export class LessonsService {
         minWatchPercent: true,
         status: true,
         sortOrder: true,
+        practicalSummary: true,
+        tomorrowChecklist: true,
         createdAt: true,
       },
     });
@@ -212,5 +222,14 @@ export class LessonsService {
       durationSeconds: lesson.durationSeconds,
       minWatchPercent: lesson.minWatchPercent,
     };
+  }
+
+  // Registrar última aula acessada para "Retomar de onde parou"
+  async recordLastSeen(lessonId: string, userId: string): Promise<void> {
+    await this.prisma.lessonLastSeen.upsert({
+      where: { userId_lessonId: { userId, lessonId } },
+      update: { seenAt: new Date() },
+      create: { userId, lessonId },
+    });
   }
 }

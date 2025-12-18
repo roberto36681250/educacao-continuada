@@ -12,33 +12,58 @@ interface User {
   profession?: string;
 }
 
-interface PendingAssignment {
-  id: string;
-  title: string;
-  status: 'PENDING' | 'IN_PROGRESS';
-  dueAt: string;
-  isOverdue: boolean;
-  course: {
+interface HomeDataAluno {
+  role: 'USER';
+  pendingAssignments: Array<{
     id: string;
     title: string;
-  };
+    dueAt: string;
+    isOverdue: boolean;
+    course: { id: string; title: string };
+  }>;
+  dueReviews: Array<{
+    id: string;
+    dueAt: string;
+    status: string;
+    competency: { id: string; name: string };
+  }>;
+  continueLesson: {
+    lessonId: string;
+    title: string;
+    courseId: string;
+    courseTitle: string;
+    watchedPct: number;
+  } | null;
+  recentCertificates: Array<{
+    id: string;
+    code: string;
+    courseTitle: string;
+    issuedAt: string;
+  }>;
 }
 
-interface PendingReview {
-  id: string;
-  dueAt: string;
-  status: 'DUE' | 'OVERDUE' | 'DONE';
-  competency: {
-    id: string;
-    name: string;
+interface HomeDataGestor {
+  role: 'MANAGER' | 'ADMIN' | 'ADMIN_MASTER';
+  summary: {
+    activeAssignments: number;
+    openTickets: number;
+    onTimePercentage: number;
+    redCompetencies: number;
   };
+  recentTickets: Array<{
+    id: string;
+    subject: string;
+    status: string;
+    createdAt: string;
+  }>;
 }
+
+type HomeData = HomeDataAluno | HomeDataGestor;
 
 export default function Home() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
-  const [pendingAssignments, setPendingAssignments] = useState<PendingAssignment[]>([]);
-  const [pendingReviews, setPendingReviews] = useState<PendingReview[]>([]);
+  const [homeData, setHomeData] = useState<HomeData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -56,25 +81,12 @@ export default function Home() {
       const userData = await api<User>('/auth/me');
       setUser(userData);
 
-      // Load pending assignments and reviews for non-admin users
-      if (userData.role !== 'ADMIN_MASTER') {
-        try {
-          const assignments = await api<PendingAssignment[]>('/me/assignments');
-          const pending = assignments.filter(
-            (a) => a.status === 'PENDING' || a.status === 'IN_PROGRESS'
-          );
-          setPendingAssignments(pending);
-        } catch {
-          // Ignore errors loading assignments
-        }
-
-        try {
-          const reviews = await api<PendingReview[]>('/me/reviews');
-          const pending = reviews.filter((r) => r.status !== 'DONE');
-          setPendingReviews(pending);
-        } catch {
-          // Ignore errors loading reviews
-        }
+      // Load home data from smart endpoint
+      try {
+        const data = await api<HomeData>('/me/home');
+        setHomeData(data);
+      } catch {
+        // Ignore errors loading home data
       }
     } catch {
       localStorage.removeItem('token');
@@ -97,7 +109,10 @@ export default function Home() {
   if (loading) {
     return (
       <main className="flex min-h-screen flex-col items-center justify-center p-24">
-        <p className="text-gray-500">Carregando...</p>
+        <div className="animate-pulse flex flex-col items-center">
+          <div className="w-12 h-12 bg-gray-200 rounded-full mb-4"></div>
+          <div className="h-4 bg-gray-200 rounded w-32"></div>
+        </div>
       </main>
     );
   }
@@ -106,9 +121,9 @@ export default function Home() {
   if (!user) {
     return (
       <main className="flex min-h-screen flex-col items-center justify-center p-24">
-        <h1 className="text-4xl font-bold text-center">Educação Continuada</h1>
+        <h1 className="text-4xl font-bold text-center">Educacao Continuada</h1>
         <p className="mt-4 text-lg text-gray-600">
-          Plataforma de Educação Continuada para equipes hospitalares
+          Plataforma de Educacao Continuada para equipes hospitalares
         </p>
         <button
           onClick={() => router.push('/login')}
@@ -120,6 +135,8 @@ export default function Home() {
     );
   }
 
+  const isGestor = homeData?.role !== 'USER';
+
   // Logged in - show dashboard
   return (
     <main className="min-h-screen bg-gray-50">
@@ -127,142 +144,278 @@ export default function Home() {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-gray-900">
-            Olá, {user.name.split(' ')[0]}!
+            Ola, {user.name.split(' ')[0]}!
           </h1>
-          <p className="text-gray-600">Bem-vindo à plataforma de Educação Continuada</p>
+          <p className="text-gray-600">Bem-vindo a plataforma de Educacao Continuada</p>
         </div>
 
-        {/* Pending reviews alert */}
-        {pendingReviews.length > 0 && (
+        {/* Gestor Summary */}
+        {isGestor && homeData?.role !== 'USER' && (
           <div className="mb-8">
-            <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-lg font-semibold text-purple-800">
-                    Voce tem {pendingReviews.length} revisao(oes) pendente(s)
-                  </h2>
-                  <p className="text-purple-700 text-sm">
-                    Complete suas revisoes para manter suas competencias em dia
-                  </p>
-                </div>
-                <button
-                  onClick={() => router.push('/revisoes')}
-                  className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 text-sm"
-                >
-                  Ver todas
-                </button>
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Resumo do Mes</h2>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="bg-white rounded-lg shadow p-4">
+                <p className="text-sm text-gray-500">Atribuicoes Ativas</p>
+                <p className="text-3xl font-bold text-blue-600">
+                  {homeData.summary.activeAssignments}
+                </p>
+              </div>
+              <div className="bg-white rounded-lg shadow p-4">
+                <p className="text-sm text-gray-500">Chamados Abertos</p>
+                <p className="text-3xl font-bold text-yellow-600">
+                  {homeData.summary.openTickets}
+                </p>
+              </div>
+              <div className="bg-white rounded-lg shadow p-4">
+                <p className="text-sm text-gray-500">Conclusoes no Prazo</p>
+                <p className="text-3xl font-bold text-green-600">
+                  {homeData.summary.onTimePercentage}%
+                </p>
+              </div>
+              <div className="bg-white rounded-lg shadow p-4">
+                <p className="text-sm text-gray-500">Competencias em Risco</p>
+                <p className="text-3xl font-bold text-red-600">
+                  {homeData.summary.redCompetencies}
+                </p>
               </div>
             </div>
 
-            {/* List of today's reviews */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {pendingReviews.slice(0, 4).map((review) => {
-                const isOverdue = review.status === 'OVERDUE';
-
-                return (
-                  <div
-                    key={review.id}
-                    className={`bg-white rounded-lg shadow p-4 ${
-                      isOverdue ? 'border-l-4 border-red-500' : ''
-                    }`}
+            {/* Recent tickets */}
+            {homeData.recentTickets.length > 0 && (
+              <div className="mt-6">
+                <div className="flex justify-between items-center mb-3">
+                  <h3 className="font-medium text-gray-700">Chamados Recentes</h3>
+                  <button
+                    onClick={() => router.push('/gestor/tickets')}
+                    className="text-blue-600 text-sm hover:underline"
                   >
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <h3 className="font-medium text-gray-900">
-                          {review.competency.name}
-                        </h3>
-                        <p
-                          className={`text-sm mt-1 ${
-                            isOverdue ? 'text-red-600 font-medium' : 'text-gray-500'
-                          }`}
-                        >
-                          {isOverdue
-                            ? `Atrasada (${formatDate(review.dueAt)})`
-                            : `Prazo: ${formatDate(review.dueAt)}`}
+                    Ver todos
+                  </button>
+                </div>
+                <div className="bg-white rounded-lg shadow divide-y">
+                  {homeData.recentTickets.map((ticket) => (
+                    <div
+                      key={ticket.id}
+                      className="p-3 flex justify-between items-center hover:bg-gray-50 cursor-pointer"
+                      onClick={() => router.push(`/gestor/tickets/${ticket.id}`)}
+                    >
+                      <div>
+                        <p className="font-medium text-sm">{ticket.subject}</p>
+                        <p className="text-xs text-gray-500">
+                          {formatDate(ticket.createdAt)}
                         </p>
                       </div>
-                      <button
-                        onClick={() => router.push(`/revisoes/${review.id}`)}
-                        className="ml-2 px-3 py-1 bg-purple-600 text-white rounded text-sm hover:bg-purple-700"
+                      <span
+                        className={`px-2 py-1 rounded text-xs ${
+                          ticket.status === 'OPEN'
+                            ? 'bg-yellow-100 text-yellow-800'
+                            : 'bg-blue-100 text-blue-800'
+                        }`}
                       >
-                        Fazer Revisao
-                      </button>
+                        {ticket.status === 'OPEN' ? 'Aberto' : 'Em Andamento'}
+                      </span>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
-        {/* Pending assignments alert */}
-        {pendingAssignments.length > 0 && (
-          <div className="mb-8">
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-lg font-semibold text-yellow-800">
-                    Você tem {pendingAssignments.length} atribuição(ões) pendente(s)
+        {/* Aluno Home */}
+        {!isGestor && homeData?.role === 'USER' && (
+          <>
+            {/* Continue watching */}
+            {homeData.continueLesson && (
+              <div className="mb-8">
+                <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg shadow p-6 text-white">
+                  <p className="text-sm opacity-90 mb-2">Continuar de onde parou</p>
+                  <h2 className="text-xl font-bold mb-1">
+                    {homeData.continueLesson.title}
                   </h2>
-                  <p className="text-yellow-700 text-sm">
-                    Complete seus cursos dentro do prazo para manter um bom desempenho
+                  <p className="text-sm opacity-80 mb-4">
+                    {homeData.continueLesson.courseTitle}
                   </p>
+                  <div className="flex items-center gap-4">
+                    <div className="flex-1 bg-white/20 rounded-full h-2">
+                      <div
+                        className="bg-white rounded-full h-2"
+                        style={{ width: `${homeData.continueLesson.watchedPct}%` }}
+                      />
+                    </div>
+                    <span className="text-sm">{homeData.continueLesson.watchedPct}%</span>
+                    <button
+                      onClick={() =>
+                        router.push(`/aula/${homeData.continueLesson!.lessonId}`)
+                      }
+                      className="bg-white text-blue-600 px-4 py-2 rounded font-medium hover:bg-blue-50"
+                    >
+                      Continuar
+                    </button>
+                  </div>
                 </div>
-                <button
-                  onClick={() => router.push('/minhas-atribuicoes')}
-                  className="px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700 text-sm"
-                >
-                  Ver todas
-                </button>
               </div>
-            </div>
+            )}
 
-            {/* List of urgent assignments */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {pendingAssignments.slice(0, 4).map((item) => {
-                const daysRemaining = getDaysRemaining(item.dueAt);
+            {/* Pending reviews alert */}
+            {homeData.dueReviews.length > 0 && (
+              <div className="mb-8">
+                <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-lg font-semibold text-purple-800">
+                        Voce tem {homeData.dueReviews.length} revisao(oes) pendente(s)
+                      </h2>
+                      <p className="text-purple-700 text-sm">
+                        Complete suas revisoes para manter suas competencias em dia
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => router.push('/revisoes')}
+                      className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 text-sm"
+                    >
+                      Ver todas
+                    </button>
+                  </div>
+                </div>
 
-                return (
-                  <div
-                    key={item.id}
-                    className={`bg-white rounded-lg shadow p-4 ${
-                      item.isOverdue ? 'border-l-4 border-red-500' : ''
-                    }`}
-                  >
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <h3 className="font-medium text-gray-900">
-                          {item.title}
-                        </h3>
-                        <p className="text-sm text-gray-600">
-                          {item.course.title}
-                        </p>
-                        <p
-                          className={`text-sm mt-1 ${
-                            item.isOverdue ? 'text-red-600 font-medium' : 'text-gray-500'
-                          }`}
-                        >
-                          {item.isOverdue
-                            ? `Atrasado (${formatDate(item.dueAt)})`
-                            : daysRemaining <= 3
-                            ? `${daysRemaining} dia(s) restante(s)`
-                            : `Prazo: ${formatDate(item.dueAt)}`}
-                        </p>
-                      </div>
-                      <button
-                        onClick={() =>
-                          router.push(`/curso/${item.course.id}`)
-                        }
-                        className="ml-2 px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {homeData.dueReviews.slice(0, 4).map((review) => {
+                    const isOverdue = review.status === 'OVERDUE';
+                    return (
+                      <div
+                        key={review.id}
+                        className={`bg-white rounded-lg shadow p-4 ${
+                          isOverdue ? 'border-l-4 border-red-500' : ''
+                        }`}
                       >
-                        {item.status === 'PENDING' ? 'Iniciar' : 'Continuar'}
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            <h3 className="font-medium text-gray-900">
+                              {review.competency.name}
+                            </h3>
+                            <p
+                              className={`text-sm mt-1 ${
+                                isOverdue ? 'text-red-600 font-medium' : 'text-gray-500'
+                              }`}
+                            >
+                              {isOverdue
+                                ? `Atrasada (${formatDate(review.dueAt)})`
+                                : `Prazo: ${formatDate(review.dueAt)}`}
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => router.push(`/revisoes/${review.id}`)}
+                            className="ml-2 px-3 py-1 bg-purple-600 text-white rounded text-sm hover:bg-purple-700"
+                          >
+                            Fazer Revisao
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Pending assignments alert */}
+            {homeData.pendingAssignments.length > 0 && (
+              <div className="mb-8">
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-lg font-semibold text-yellow-800">
+                        Voce tem {homeData.pendingAssignments.length} atribuicao(oes) pendente(s)
+                      </h2>
+                      <p className="text-yellow-700 text-sm">
+                        Complete seus cursos dentro do prazo para manter um bom desempenho
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => router.push('/minhas-atribuicoes')}
+                      className="px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700 text-sm"
+                    >
+                      Ver todas
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {homeData.pendingAssignments.slice(0, 4).map((item) => {
+                    const daysRemaining = getDaysRemaining(item.dueAt);
+                    return (
+                      <div
+                        key={item.id}
+                        className={`bg-white rounded-lg shadow p-4 ${
+                          item.isOverdue ? 'border-l-4 border-red-500' : ''
+                        }`}
+                      >
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            <h3 className="font-medium text-gray-900">{item.title}</h3>
+                            <p className="text-sm text-gray-600">{item.course.title}</p>
+                            <p
+                              className={`text-sm mt-1 ${
+                                item.isOverdue ? 'text-red-600 font-medium' : 'text-gray-500'
+                              }`}
+                            >
+                              {item.isOverdue
+                                ? `Atrasado (${formatDate(item.dueAt)})`
+                                : daysRemaining <= 3
+                                ? `${daysRemaining} dia(s) restante(s)`
+                                : `Prazo: ${formatDate(item.dueAt)}`}
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => router.push(`/curso/${item.course.id}`)}
+                            className="ml-2 px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
+                          >
+                            Continuar
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Recent certificates */}
+            {homeData.recentCertificates.length > 0 && (
+              <div className="mb-8">
+                <div className="flex justify-between items-center mb-3">
+                  <h2 className="text-lg font-semibold text-gray-900">
+                    Certificados Recentes
+                  </h2>
+                  <button
+                    onClick={() => router.push('/meus-certificados')}
+                    className="text-blue-600 text-sm hover:underline"
+                  >
+                    Ver todos
+                  </button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {homeData.recentCertificates.map((cert) => (
+                    <div
+                      key={cert.id}
+                      className="bg-white rounded-lg shadow p-4 border-l-4 border-green-500"
+                    >
+                      <h3 className="font-medium text-gray-900">{cert.courseTitle}</h3>
+                      <p className="text-sm text-gray-500 mt-1">
+                        Emitido em {formatDate(cert.issuedAt)}
+                      </p>
+                      <button
+                        onClick={() => router.push(`/certificado/${cert.id}`)}
+                        className="mt-2 text-blue-600 text-sm hover:underline"
+                      >
+                        Ver certificado
                       </button>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
         )}
 
         {/* Quick access cards */}
@@ -273,7 +426,7 @@ export default function Home() {
           >
             <h3 className="text-lg font-semibold text-gray-900">Meus Cursos</h3>
             <p className="text-gray-600 text-sm mt-1">
-              Acesse os cursos disponíveis para você
+              Acesse os cursos disponiveis para voce
             </p>
           </button>
 
@@ -281,9 +434,9 @@ export default function Home() {
             onClick={() => router.push('/minhas-atribuicoes')}
             className="bg-white rounded-lg shadow p-6 text-left hover:shadow-md transition-shadow"
           >
-            <h3 className="text-lg font-semibold text-gray-900">Minhas Atribuições</h3>
+            <h3 className="text-lg font-semibold text-gray-900">Minhas Atribuicoes</h3>
             <p className="text-gray-600 text-sm mt-1">
-              Veja os cursos atribuídos a você com prazo
+              Veja os cursos atribuidos a voce com prazo
             </p>
           </button>
 
@@ -292,19 +445,15 @@ export default function Home() {
             className="bg-white rounded-lg shadow p-6 text-left hover:shadow-md transition-shadow"
           >
             <h3 className="text-lg font-semibold text-gray-900">Meu Perfil</h3>
-            <p className="text-gray-600 text-sm mt-1">
-              Veja suas informações e lotação
-            </p>
+            <p className="text-gray-600 text-sm mt-1">Veja suas informacoes e lotacao</p>
           </button>
 
           <button
-            onClick={() => router.push('/certificados')}
+            onClick={() => router.push('/meus-certificados')}
             className="bg-white rounded-lg shadow p-6 text-left hover:shadow-md transition-shadow"
           >
             <h3 className="text-lg font-semibold text-gray-900">Meus Certificados</h3>
-            <p className="text-gray-600 text-sm mt-1">
-              Veja e baixe seus certificados
-            </p>
+            <p className="text-gray-600 text-sm mt-1">Veja e baixe seus certificados</p>
           </button>
 
           <button
@@ -322,9 +471,7 @@ export default function Home() {
             className="bg-white rounded-lg shadow p-6 text-left hover:shadow-md transition-shadow"
           >
             <h3 className="text-lg font-semibold text-gray-900">Suporte</h3>
-            <p className="text-gray-600 text-sm mt-1">
-              Abra um chamado de suporte
-            </p>
+            <p className="text-gray-600 text-sm mt-1">Abra um chamado de suporte</p>
           </button>
         </div>
 
@@ -332,7 +479,7 @@ export default function Home() {
         {(user.role === 'ADMIN_MASTER' || user.role === 'ADMIN') && (
           <div className="mt-8">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">
-              Área Administrativa
+              Area Administrativa
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <button
@@ -361,7 +508,7 @@ export default function Home() {
                 className="bg-indigo-50 rounded-lg p-4 text-left hover:bg-indigo-100 transition-colors"
               >
                 <h3 className="font-medium text-indigo-900">Convites</h3>
-                <p className="text-indigo-700 text-sm">Convidar usuários</p>
+                <p className="text-indigo-700 text-sm">Convidar usuarios</p>
               </button>
             </div>
           </div>
@@ -369,7 +516,7 @@ export default function Home() {
 
         {(user.role === 'ADMIN_MASTER' || user.role === 'ADMIN' || user.role === 'MANAGER') && (
           <div className="mt-8">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Área do Gestor</h2>
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Area do Gestor</h2>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <button
                 onClick={() => router.push('/professor/cursos')}
@@ -382,7 +529,7 @@ export default function Home() {
                 onClick={() => router.push('/gestor/atribuicoes')}
                 className="bg-green-50 rounded-lg p-4 text-left hover:bg-green-100 transition-colors"
               >
-                <h3 className="font-medium text-green-900">Atribuições</h3>
+                <h3 className="font-medium text-green-900">Atribuicoes</h3>
                 <p className="text-green-700 text-sm">Atribuir cursos</p>
               </button>
               <button

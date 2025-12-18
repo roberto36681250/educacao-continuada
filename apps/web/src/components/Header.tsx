@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { api, removeToken, getToken } from '@/lib/api';
+import SearchCommand from './SearchCommand';
 
 interface User {
   id: string;
@@ -67,6 +68,8 @@ export default function Header() {
           </Link>
 
           <nav className="flex items-center gap-4">
+            <SearchCommand />
+
             <Link
               href="/cursos"
               className={`text-sm ${

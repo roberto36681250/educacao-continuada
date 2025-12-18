@@ -35,8 +35,11 @@ export class LessonsController {
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.lessonsService.findOne(id);
+  async findOne(@Param('id') id: string, @Request() req: any) {
+    const lesson = await this.lessonsService.findOne(id);
+    // Registrar última aula acessada (async, não bloqueia resposta)
+    this.lessonsService.recordLastSeen(id, req.user.userId).catch(() => {});
+    return lesson;
   }
 
   @Post()
