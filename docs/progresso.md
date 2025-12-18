@@ -429,3 +429,165 @@ VideoProgress {
 - `apps/web/src/app/curso/[id]/page.tsx`
 - `apps/web/src/app/aula/[id]/page.tsx`
 - `apps/web/src/app/quiz/[lessonId]/page.tsx`
+
+---
+
+## Bloco 6 - Quiz com Tentativas e Ciclos
+**Status**: Concluído
+
+### O que foi feito
+- Sistema de quiz com 3 tentativas por ciclo
+- Nota mínima de 70% para aprovação
+- Bloqueio após 3 reprovações (exige reassistir aula)
+- Registro de aprovação por aula (LessonApproval)
+
+---
+
+## Bloco 7 - Assignments, Deadlines e Rankings
+**Status**: Concluído
+
+### O que foi feito
+- Atribuições de cursos com prazo
+- Escopos: profissão no instituto, unidade completa, profissão na unidade
+- Status: PENDING, IN_PROGRESS, COMPLETED_ON_TIME, COMPLETED_LATE
+- Ranking por unidade/hospital com média de notas
+
+---
+
+## Bloco 8 - Certificados com PDF e QR Code
+**Status**: Concluído
+
+### O que foi feito
+- Emissão automática de certificados ao completar curso
+- PDF gerado com PDFKit
+- QR Code para verificação pública
+- Endpoint público `/verify/:code` para validar certificado
+- Auditoria de emissão, download e verificação
+
+---
+
+## Bloco 9 - Suporte, Tickets, FAQ e Notificações
+**Status**: Concluído
+
+### O que foi feito
+
+#### Schema Prisma
+- **Ticket**: tickets de suporte com contexto (curso, aula, quiz, assignment)
+- **TicketMessage**: mensagens em formato chat
+- **TicketAttachment**: anexos (PNG, JPG, PDF até 5MB)
+- **FAQ**: perguntas frequentes por curso
+- **Notification**: notificações internas com tipos
+
+#### API (NestJS)
+- **TicketsModule**:
+  - POST `/tickets` - Criar ticket (aluno)
+  - GET `/me/tickets` - Listar meus tickets (aluno)
+  - GET `/tickets/:id` - Detalhes do ticket com mensagens
+  - POST `/tickets/:id/messages` - Adicionar mensagem
+  - POST `/tickets/:id/attachments` - Anexar arquivo
+  - PATCH `/tickets/:id/close` - Fechar ticket (autor)
+  - GET `/tickets?status=&category=&from=&to=` - Listar tickets (gestor)
+  - PATCH `/tickets/:id/status` - Mudar status (gestor)
+  - PATCH `/tickets/:id/assign` - Atribuir responsável (gestor)
+  - GET `/tickets/export.csv` - Exportar CSV (gestor)
+
+- **FAQModule**:
+  - GET `/courses/:courseId/faq` - FAQs publicadas do curso
+  - GET `/courses/:courseId/faq/all` - Todas FAQs (gestor)
+  - POST `/courses/:courseId/faq` - Criar FAQ (gestor)
+  - PATCH `/faq/:id` - Atualizar FAQ
+  - PATCH `/faq/:id/status` - Mudar status da FAQ
+  - DELETE `/faq/:id` - Remover FAQ
+
+- **NotificationsModule**:
+  - GET `/me/notifications` - Listar notificações
+  - GET `/me/notifications/count` - Contar não lidas
+  - PATCH `/notifications/:id/read` - Marcar como lida
+  - PATCH `/notifications/read-all` - Marcar todas como lidas
+
+#### Web (Next.js)
+- `/suporte` - Lista de tickets do aluno
+- `/suporte/[id]` - Detalhe do ticket em formato chat
+- `/gestor/tickets` - Painel de gestão de tickets
+- `/notificacoes` - Lista de notificações
+- `Header` com badge de notificações não lidas
+- Botão "Dúvida" em `/aula/[id]` e `/quiz/[lessonId]`
+- FAQ accordion na página `/curso/[id]`
+
+### Regras de Notificação
+- Ticket criado → notifica gestores
+- Gestor responde → notifica criador do ticket
+- Status muda para RESOLVED/CLOSED → notifica criador
+
+### Como abrir ticket na aula
+1. Acesse uma aula (`/aula/[id]`)
+2. Clique no botão "Tenho uma dúvida sobre esta aula"
+3. Preencha assunto e mensagem
+4. O ticket é criado com contexto do curso e aula automaticamente
+
+### Como abrir ticket no quiz
+1. Durante o quiz, clique no botão "Dúvida" no rodapé
+2. Preencha assunto e mensagem
+3. O ticket é criado com contexto da aula e tentativa do quiz
+
+### Como gestor responde e encerra
+1. Acesse `/gestor/tickets`
+2. Use os filtros para encontrar tickets
+3. Clique no assunto para ver detalhes
+4. Responda no campo de mensagem
+5. Mude o status para "Resolvido" ou "Fechado"
+
+### Como anexar arquivo
+1. No detalhe do ticket, clique em "Anexar arquivo"
+2. Selecione um arquivo (PNG, JPG ou PDF, máx 5MB)
+3. O arquivo aparece na seção de anexos
+
+### Como criar FAQ
+1. Acesse `/professor/cursos/[id]` ou via API
+2. Use POST `/courses/:courseId/faq` com question, answer e status
+3. FAQs com status PUBLISHED aparecem para alunos na página do curso
+
+### Como testar notificações
+1. Crie um ticket como aluno
+2. Faça login como gestor e responda
+3. Volte ao aluno e veja o badge de notificação
+4. Clique no sino para ver a notificação
+
+### Exportar CSV de tickets
+1. Acesse `/gestor/tickets`
+2. Opcionalmente filtre por período (De/Até)
+3. Clique em "Exportar CSV"
+4. O arquivo é baixado com todos os tickets filtrados
+
+### Endpoints da API (Bloco 9)
+| Método | Rota | Autenticação | Descrição |
+|--------|------|--------------|-----------|
+| POST | /tickets | JWT | Criar ticket |
+| GET | /me/tickets | JWT | Meus tickets |
+| GET | /tickets/:id | JWT | Detalhes ticket |
+| POST | /tickets/:id/messages | JWT | Enviar mensagem |
+| POST | /tickets/:id/attachments | JWT | Anexar arquivo |
+| PATCH | /tickets/:id/close | JWT | Fechar ticket |
+| GET | /tickets | JWT (GESTOR+) | Listar tickets |
+| PATCH | /tickets/:id/status | JWT (GESTOR+) | Mudar status |
+| PATCH | /tickets/:id/assign | JWT (GESTOR+) | Atribuir |
+| GET | /tickets/export.csv | JWT (GESTOR+) | Exportar CSV |
+| GET | /courses/:id/faq | JWT | FAQs do curso |
+| POST | /courses/:id/faq | JWT (GESTOR+) | Criar FAQ |
+| PATCH | /faq/:id | JWT (GESTOR+) | Atualizar FAQ |
+| DELETE | /faq/:id | JWT (GESTOR+) | Remover FAQ |
+| GET | /me/notifications | JWT | Minhas notificações |
+| GET | /me/notifications/count | JWT | Não lidas |
+| PATCH | /notifications/:id/read | JWT | Marcar lida |
+| PATCH | /notifications/read-all | JWT | Marcar todas |
+
+### Arquivos criados
+- `apps/api/src/tickets/*` - Módulo de tickets
+- `apps/api/src/faq/*` - Módulo de FAQ
+- `apps/api/src/notifications/*` - Módulo de notificações
+- `apps/api/storage/tickets/` - Armazenamento de anexos
+- `apps/web/src/app/suporte/page.tsx`
+- `apps/web/src/app/suporte/[id]/page.tsx`
+- `apps/web/src/app/gestor/tickets/page.tsx`
+- `apps/web/src/app/notificacoes/page.tsx`
+- `apps/web/src/components/Header.tsx`

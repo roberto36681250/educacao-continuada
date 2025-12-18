@@ -45,3 +45,11 @@ export function removeToken() {
 export function getToken() {
   return Cookies.get('token');
 }
+
+export function getAuthToken() {
+  return Cookies.get('token');
+}
+
+export function getApiUrl() {
+  return API_URL;
+}

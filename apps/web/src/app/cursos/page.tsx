@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
+import Header from '@/components/Header';
 
 interface Course {
   id: string;
@@ -54,17 +55,14 @@ export default function CursosPage() {
   }
 
   return (
-    <main className="flex min-h-screen flex-col items-center py-12 px-6 bg-gray-50">
-      <div className="w-full max-w-4xl">
-        <div className="flex justify-between items-center mb-8">
-          <div>
+    <>
+      <Header />
+      <main className="flex min-h-screen flex-col items-center py-12 px-6 bg-gray-50">
+        <div className="w-full max-w-4xl">
+          <div className="mb-8">
             <h1 className="text-3xl font-bold">Cursos Disponíveis</h1>
             <p className="text-gray-600">Olá, {user?.name}</p>
           </div>
-          <a href="/me" className="text-blue-600 hover:underline">
-            Meu Perfil
-          </a>
-        </div>
 
         {courses.length === 0 ? (
           <div className="bg-white shadow-md rounded-lg p-8 text-center text-gray-500">
@@ -91,7 +89,8 @@ export default function CursosPage() {
             ))}
           </div>
         )}
-      </div>
-    </main>
+        </div>
+      </main>
+    </>
   );
 }

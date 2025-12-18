@@ -44,6 +44,12 @@ interface Certificate {
   code: string;
 }
 
+interface FAQ {
+  id: string;
+  question: string;
+  answer: string;
+}
+
 export default function CursoPage() {
   const router = useRouter();
   const params = useParams();
@@ -56,6 +62,8 @@ export default function CursoPage() {
   const [loading, setLoading] = useState(true);
   const [issuingCertificate, setIssuingCertificate] = useState(false);
   const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set());
+  const [faqs, setFaqs] = useState<FAQ[]>([]);
+  const [expandedFaq, setExpandedFaq] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadData() {
@@ -96,6 +104,14 @@ export default function CursoPage() {
               ),
             };
           });
+        }
+
+        // Load FAQs for this course
+        try {
+          const faqData = await api<FAQ[]>(`/courses/${courseId}/faq`);
+          setFaqs(faqData);
+        } catch {
+          // No FAQs or error
         }
       } catch {
         router.push('/cursos');
@@ -379,6 +395,38 @@ export default function CursoPage() {
                 )}
               </div>
             ))}
+          </div>
+        )}
+
+        {/* FAQ Section */}
+        {faqs.length > 0 && (
+          <div className="mt-8">
+            <h2 className="text-xl font-semibold mb-4">Perguntas Frequentes</h2>
+            <div className="space-y-2">
+              {faqs.map((faq) => (
+                <div
+                  key={faq.id}
+                  className="bg-white shadow-md rounded-lg overflow-hidden"
+                >
+                  <button
+                    onClick={() =>
+                      setExpandedFaq(expandedFaq === faq.id ? null : faq.id)
+                    }
+                    className="w-full p-4 text-left flex justify-between items-center hover:bg-gray-50"
+                  >
+                    <span className="font-medium">{faq.question}</span>
+                    <span className="text-gray-400">
+                      {expandedFaq === faq.id ? '−' : '+'}
+                    </span>
+                  </button>
+                  {expandedFaq === faq.id && (
+                    <div className="px-4 pb-4 text-gray-600 border-t pt-3">
+                      {faq.answer}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </div>

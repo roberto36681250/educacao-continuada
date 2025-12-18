@@ -76,12 +76,17 @@ model User {
   videoProgress        VideoProgress[]
   quizAttempts         QuizAttempt[]
   competencies         UserCompetency[]
-  tickets              Ticket[]
   auditLogs            AuditLog[]
   createdInvites       InviteToken[]
   createdAssignments   Assignment[]           @relation("AssignmentCreator")
   assignmentStatuses   UserAssignmentStatus[]
   certificates         Certificate[]
+  createdTickets       Ticket[]               @relation("TicketCreator")
+  assignedTickets      Ticket[]               @relation("TicketAssignee")
+  ticketMessages       TicketMessage[]
+  ticketAttachments    TicketAttachment[]
+  createdFAQs          FAQ[]
+  notifications        Notification[]
 
   @@map("users")
 }
@@ -129,6 +134,7 @@ model Course {
   tickets      Ticket[]
   assignments  Assignment[]
   certificates Certificate[]
+  faqs         FAQ[]
 
   @@map("courses")
 }
@@ -145,7 +151,6 @@ model Module {
 
   course  Course   @relation(fields: [courseId], references: [id])
   lessons Lesson[]
-  tickets Ticket[]
 
   @@map("modules")
 }
@@ -354,27 +359,32 @@ enum CompetencyStatus {
 }
 
 // ============================================
-// SUPORTE
+// SUPORTE E TICKETS
 // ============================================
 
 model Ticket {
-  id            String       @id @default(cuid())
-  userId        String
-  subject       String
-  description   String
-  status        TicketStatus @default(OPEN)
-  courseId      String?
-  moduleId      String?
-  lessonId      String?
-  quizAttemptId String?
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
+  id               String         @id @default(cuid())
+  instituteId      String
+  createdByUserId  String
+  assignedToUserId String?
+  status           TicketStatus   @default(OPEN)
+  category         TicketCategory @default(OTHER)
+  priority         TicketPriority @default(MEDIUM)
+  subject          String
+  courseId         String?
+  lessonId         String?
+  quizAttemptId    String?
+  assignmentId     String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
 
-  user        User         @relation(fields: [userId], references: [id])
-  course      Course?      @relation(fields: [courseId], references: [id])
-  module      Module?      @relation(fields: [moduleId], references: [id])
-  lesson      Lesson?      @relation(fields: [lessonId], references: [id])
-  quizAttempt QuizAttempt? @relation(fields: [quizAttemptId], references: [id])
+  createdBy   User          @relation("TicketCreator", fields: [createdByUserId], references: [id])
+  assignedTo  User?         @relation("TicketAssignee", fields: [assignedToUserId], references: [id])
+  course      Course?       @relation(fields: [courseId], references: [id])
+  lesson      Lesson?       @relation(fields: [lessonId], references: [id])
+  quizAttempt QuizAttempt?  @relation(fields: [quizAttemptId], references: [id])
+  messages    TicketMessage[]
+  attachments TicketAttachment[]
 
   @@map("tickets")
 }
@@ -384,6 +394,103 @@ enum TicketStatus {
   IN_PROGRESS
   RESOLVED
   CLOSED
+}
+
+enum TicketCategory {
+  CONTENT
+  QUIZ
+  TECHNICAL
+  CERTIFICATE
+  ASSIGNMENT
+  OTHER
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+model TicketMessage {
+  id           String   @id @default(cuid())
+  ticketId     String
+  authorUserId String
+  message      String
+  createdAt    DateTime @default(now())
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  author User   @relation(fields: [authorUserId], references: [id])
+
+  @@map("ticket_messages")
+}
+
+model TicketAttachment {
+  id               String   @id @default(cuid())
+  ticketId         String
+  uploadedByUserId String
+  filename         String
+  mimeType         String
+  sizeBytes        Int
+  storagePath      String
+  createdAt        DateTime @default(now())
+
+  ticket     Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  uploadedBy User   @relation(fields: [uploadedByUserId], references: [id])
+
+  @@map("ticket_attachments")
+}
+
+// ============================================
+// FAQ
+// ============================================
+
+model FAQ {
+  id              String    @id @default(cuid())
+  instituteId     String
+  courseId        String
+  question        String
+  answer          String
+  status          FAQStatus @default(DRAFT)
+  createdByUserId String
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  course    Course @relation(fields: [courseId], references: [id])
+  createdBy User   @relation(fields: [createdByUserId], references: [id])
+
+  @@map("faqs")
+}
+
+enum FAQStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+// ============================================
+// NOTIFICAÇÕES
+// ============================================
+
+model Notification {
+  id          String           @id @default(cuid())
+  instituteId String
+  userId      String
+  type        NotificationType
+  title       String
+  body        String
+  readAt      DateTime?
+  createdAt   DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("notifications")
+}
+
+enum NotificationType {
+  TICKET_REPLY
+  TICKET_STATUS
+  ASSIGNMENT_NEW
+  CERTIFICATE_ISSUED
 }
 
 // ============================================

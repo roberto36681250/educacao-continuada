@@ -78,6 +78,10 @@ export default function AulaPage() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [localWatchedSeconds, setLocalWatchedSeconds] = useState(0);
   const [quizUnlocked, setQuizUnlocked] = useState(false);
+  const [showTicketModal, setShowTicketModal] = useState(false);
+  const [ticketSubject, setTicketSubject] = useState('');
+  const [ticketMessage, setTicketMessage] = useState('');
+  const [submittingTicket, setSubmittingTicket] = useState(false);
 
   const playerRef = useRef<YTPlayer | null>(null);
   const tickIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -244,6 +248,34 @@ export default function AulaPage() {
     ? Math.min(100, Math.floor((localWatchedSeconds / lesson.durationSeconds) * 100))
     : 0;
 
+  const handleSubmitTicket = async () => {
+    if (!ticketSubject.trim() || !ticketMessage.trim()) {
+      alert('Preencha o assunto e a mensagem');
+      return;
+    }
+    setSubmittingTicket(true);
+    try {
+      await api('/tickets', {
+        method: 'POST',
+        body: {
+          subject: ticketSubject,
+          message: ticketMessage,
+          category: 'CONTENT',
+          courseId: lesson?.module.course.id,
+          lessonId: lesson?.id,
+        },
+      });
+      alert('Ticket criado com sucesso! Você receberá uma resposta em breve.');
+      setShowTicketModal(false);
+      setTicketSubject('');
+      setTicketMessage('');
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Erro ao criar ticket');
+    } finally {
+      setSubmittingTicket(false);
+    }
+  };
+
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -382,7 +414,81 @@ export default function AulaPage() {
             </>
           )}
         </div>
+
+        {/* Botão Dúvida */}
+        <div className="mt-6 text-center">
+          <button
+            onClick={() => setShowTicketModal(true)}
+            className="inline-flex items-center gap-2 bg-orange-600 text-white py-2 px-6 rounded-md hover:bg-orange-700"
+          >
+            <span>?</span>
+            Tenho uma dúvida sobre esta aula
+          </button>
+        </div>
       </div>
+
+      {/* Modal de Ticket */}
+      {showTicketModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg w-full max-w-lg p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold">Abrir Ticket de Suporte</h2>
+              <button
+                onClick={() => setShowTicketModal(false)}
+                className="text-gray-500 hover:text-gray-700 text-2xl"
+              >
+                &times;
+              </button>
+            </div>
+
+            <div className="mb-4 p-3 bg-blue-50 rounded text-sm text-blue-800">
+              <strong>Contexto:</strong> {lesson?.module.course.title} &gt; {lesson?.title}
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Assunto
+              </label>
+              <input
+                type="text"
+                value={ticketSubject}
+                onChange={(e) => setTicketSubject(e.target.value)}
+                className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Resumo da sua dúvida"
+              />
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Mensagem
+              </label>
+              <textarea
+                value={ticketMessage}
+                onChange={(e) => setTicketMessage(e.target.value)}
+                rows={5}
+                className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Descreva sua dúvida em detalhes..."
+              />
+            </div>
+
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowTicketModal(false)}
+                className="px-4 py-2 text-gray-600 hover:text-gray-800"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSubmitTicket}
+                disabled={submittingTicket}
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+              >
+                {submittingTicket ? 'Enviando...' : 'Enviar Ticket'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

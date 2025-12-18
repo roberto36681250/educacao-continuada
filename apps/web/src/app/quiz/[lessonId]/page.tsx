@@ -64,6 +64,35 @@ export default function QuizPage() {
   const [answers, setAnswers] = useState<Record<string, { optionIds: string[]; justification: string }>>({});
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<SubmitResult | null>(null);
+  const [showTicketModal, setShowTicketModal] = useState(false);
+  const [ticketSubject, setTicketSubject] = useState('');
+  const [ticketMessage, setTicketMessage] = useState('');
+  const [submittingTicket, setSubmittingTicket] = useState(false);
+
+  const handleSubmitTicket = async () => {
+    if (!ticketSubject.trim() || !ticketMessage.trim()) return;
+    setSubmittingTicket(true);
+    try {
+      await api('/tickets', {
+        method: 'POST',
+        body: {
+          subject: ticketSubject,
+          message: ticketMessage,
+          category: 'QUIZ',
+          lessonId,
+          quizAttemptId: attemptId || undefined,
+        },
+      });
+      setShowTicketModal(false);
+      setTicketSubject('');
+      setTicketMessage('');
+      alert('Dúvida enviada com sucesso! Acompanhe em Suporte.');
+    } catch (err: any) {
+      alert(err.message || 'Erro ao enviar dúvida');
+    } finally {
+      setSubmittingTicket(false);
+    }
+  };
 
   useEffect(() => {
     loadQuizState();
@@ -467,12 +496,20 @@ export default function QuizPage() {
           </div>
 
           <div className="mt-8 flex justify-between items-center">
-            <button
-              onClick={() => router.push(`/aula/${lessonId}`)}
-              className="text-gray-600 hover:underline"
-            >
-              Cancelar
-            </button>
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => router.push(`/aula/${lessonId}`)}
+                className="text-gray-600 hover:underline"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => setShowTicketModal(true)}
+                className="text-orange-600 hover:text-orange-700 flex items-center gap-1"
+              >
+                <span>❓</span> Dúvida
+              </button>
+            </div>
             <button
               onClick={handleSubmit}
               disabled={submitting}
@@ -482,6 +519,56 @@ export default function QuizPage() {
             </button>
           </div>
         </div>
+
+        {/* Modal de Dúvida */}
+        {showTicketModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
+              <h2 className="text-xl font-bold mb-4">Enviar Dúvida sobre o Quiz</h2>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Assunto
+                  </label>
+                  <input
+                    type="text"
+                    value={ticketSubject}
+                    onChange={(e) => setTicketSubject(e.target.value)}
+                    className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Resumo da sua dúvida"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Mensagem
+                  </label>
+                  <textarea
+                    value={ticketMessage}
+                    onChange={(e) => setTicketMessage(e.target.value)}
+                    className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    rows={4}
+                    placeholder="Descreva sua dúvida em detalhes..."
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end gap-3 mt-6">
+                <button
+                  onClick={() => setShowTicketModal(false)}
+                  className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleSubmitTicket}
+                  disabled={submittingTicket || !ticketSubject.trim() || !ticketMessage.trim()}
+                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {submittingTicket ? 'Enviando...' : 'Enviar'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
