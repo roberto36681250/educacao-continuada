@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
-interface HomeDataAluno {
+export interface HomeDataAluno {
   role: 'USER';
   pendingAssignments: Array<{
     id: string;
@@ -31,7 +31,7 @@ interface HomeDataAluno {
   }>;
 }
 
-interface HomeDataGestor {
+export interface HomeDataGestor {
   role: 'MANAGER' | 'ADMIN' | 'ADMIN_MASTER';
   summary: {
     activeAssignments: number;
@@ -47,7 +47,7 @@ interface HomeDataGestor {
   }>;
 }
 
-type HomeData = HomeDataAluno | HomeDataGestor;
+export type HomeData = HomeDataAluno | HomeDataGestor;
 
 @Injectable()
 export class HomeService {

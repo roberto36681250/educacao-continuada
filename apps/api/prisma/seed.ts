@@ -206,6 +206,105 @@ async function main() {
   });
   console.log('✅ Lotações criadas');
 
+  // 7. Criar regras de anonimização default (LGPD)
+  const anonymizationRules = [
+    {
+      id: 'rule-cpf',
+      name: 'CPF',
+      pattern: '\\b\\d{3}\\.?\\d{3}\\.?\\d{3}-?\\d{2}\\b',
+      replacement: '[CPF]',
+      isCritical: true,
+      sortOrder: 1,
+    },
+    {
+      id: 'rule-telefone',
+      name: 'Telefone',
+      pattern: '\\b\\(?\\d{2}\\)?[\\s.-]?\\d{4,5}[\\s.-]?\\d{4}\\b',
+      replacement: '[TELEFONE]',
+      isCritical: true,
+      sortOrder: 2,
+    },
+    {
+      id: 'rule-email',
+      name: 'E-mail',
+      pattern: '\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}\\b',
+      replacement: '[EMAIL]',
+      isCritical: true,
+      sortOrder: 3,
+    },
+    {
+      id: 'rule-data',
+      name: 'Data',
+      pattern: '\\b\\d{1,2}[/.-]\\d{1,2}[/.-]\\d{2,4}\\b',
+      replacement: '[DATA]',
+      isCritical: false,
+      sortOrder: 4,
+    },
+    {
+      id: 'rule-prontuario',
+      name: 'Prontuário/ID',
+      pattern: '\\b\\d{7,}\\b',
+      replacement: '[ID]',
+      isCritical: false,
+      sortOrder: 5,
+    },
+    {
+      id: 'rule-nome-paciente',
+      name: 'Nome após título',
+      pattern: '(?:Sr\\.?|Sra\\.?|Dr\\.?|Dra\\.?|Paciente:?)\\s+([A-ZÀ-Ú][a-zà-ú]+(?:\\s+[A-ZÀ-Ú][a-zà-ú]+)*)',
+      replacement: '[NOME]',
+      isCritical: false,
+      sortOrder: 6,
+    },
+    {
+      id: 'rule-endereco',
+      name: 'Endereço',
+      pattern: '(?:Rua|Av\\.?|Avenida|Travessa|Alameda)\\s+[A-Za-zÀ-ú\\s]+,?\\s*(?:n[º°.]?\\s*)?\\d+',
+      replacement: '[ENDERECO]',
+      isCritical: false,
+      sortOrder: 7,
+    },
+    {
+      id: 'rule-cep',
+      name: 'CEP',
+      pattern: '\\b\\d{5}-?\\d{3}\\b',
+      replacement: '[CEP]',
+      isCritical: false,
+      sortOrder: 8,
+    },
+    {
+      id: 'rule-leito',
+      name: 'Leito',
+      pattern: '(?:leito|box)\\s*[:\\s]?\\s*\\d+[A-Za-z]?',
+      replacement: '[LEITO]',
+      isCritical: false,
+      sortOrder: 9,
+    },
+  ];
+
+  for (const rule of anonymizationRules) {
+    await prisma.anonymizationRule.upsert({
+      where: { id: rule.id },
+      update: {
+        name: rule.name,
+        pattern: rule.pattern,
+        replacement: rule.replacement,
+        isCritical: rule.isCritical,
+        sortOrder: rule.sortOrder,
+      },
+      create: {
+        id: rule.id,
+        instituteId: institute.id,
+        name: rule.name,
+        pattern: rule.pattern,
+        replacement: rule.replacement,
+        isCritical: rule.isCritical,
+        sortOrder: rule.sortOrder,
+      },
+    });
+  }
+  console.log('✅ Regras de anonimização criadas:', anonymizationRules.length, 'regras');
+
   console.log('🎉 Seed concluído com sucesso!');
 }
 

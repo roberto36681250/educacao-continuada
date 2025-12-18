@@ -20,6 +20,8 @@ import { CompetenciesModule } from './competencies/competencies.module';
 import { ReviewsModule } from './reviews/reviews.module';
 import { SearchModule } from './search/search.module';
 import { HomeModule } from './home/home.module';
+import { AnonymizationRulesModule } from './anonymization-rules/anonymization-rules.module';
+import { CasesModule } from './cases/cases.module';
 
 @Module({
   imports: [
@@ -43,6 +45,8 @@ import { HomeModule } from './home/home.module';
     ReviewsModule,
     SearchModule,
     HomeModule,
+    AnonymizationRulesModule,
+    CasesModule,
   ],
   controllers: [AppController],
   providers: [],

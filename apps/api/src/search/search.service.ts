@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ContentStatus, FAQStatus } from '@prisma/client';
 
-interface SearchResult {
+export interface SearchResult {
   courses: Array<{
     id: string;
     title: string;

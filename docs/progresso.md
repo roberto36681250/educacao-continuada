@@ -802,3 +802,127 @@ VideoProgress {
 - `apps/web/src/app/page.tsx` (atualizado)
 - `apps/web/src/app/aula/[id]/page.tsx` (atualizado)
 - `apps/web/src/components/Header.tsx` (atualizado)
+
+---
+
+## Bloco 11 - LGPD e Anonimizacao de Casos Clinicos
+**Status**: Concluido
+
+### O que foi feito
+
+#### Schema Prisma
+- **ClinicalCase**: Caso clinico anonimizado (title, textAnonymized, status)
+- **AnonymizationRule**: Regras de anonimizacao por instituto (pattern regex, replacement, isCritical)
+- **AnonymizationLog**: Log de quem anonimizou, quando e quantas regras aplicou
+
+#### API (NestJS)
+
+- **AnonymizationRulesModule**:
+  - GET `/anonymization-rules` - Lista regras do instituto
+  - GET `/anonymization-rules/:id` - Detalhe de uma regra
+  - POST `/anonymization-rules` - Criar nova regra (ADMIN)
+  - PATCH `/anonymization-rules/:id` - Editar regra (ADMIN)
+  - DELETE `/anonymization-rules/:id` - Excluir regra (ADMIN)
+
+- **CasesModule**:
+  - GET `/cases` - Lista casos (aluno ve so PUBLISHED)
+  - GET `/cases/:id` - Detalhe do caso
+  - POST `/cases` - Criar rascunho (MANAGER+)
+  - PATCH `/cases/:id` - Editar caso (MANAGER+)
+  - POST `/cases/:id/anonymize` - Anonimiza texto e retorna preview
+  - PATCH `/cases/:id/publish` - Publica caso (bloqueia se detectar dado sensivel critico)
+  - PATCH `/cases/:id/archive` - Arquiva caso
+  - DELETE `/cases/:id` - Exclui caso (ADMIN)
+
+#### Web (Next.js)
+
+- **/gestor/casos**: Gerenciamento de casos clinicos
+  - Criar/editar caso com editor lado a lado
+  - Botao "Anonimizar" que processa texto e mostra preview
+  - Visualizacao de substituicoes feitas
+  - Publicar/Arquivar/Excluir
+
+- **/casos**: Lista de casos publicados (alunos)
+
+- **/casos/[id]**: Leitura do caso clinico
+
+### Regras de Anonimizacao Padrao
+
+| Nome | Padrao | Substituicao | Critico |
+|------|--------|--------------|---------|
+| CPF | `\d{3}\.?\d{3}\.?\d{3}-?\d{2}` | [CPF] | Sim |
+| Telefone | `\(?\d{2}\)?[\s.-]?\d{4,5}[\s.-]?\d{4}` | [TELEFONE] | Sim |
+| E-mail | `[A-Za-z0-9._%+-]+@...` | [EMAIL] | Sim |
+| Data | `\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4}` | [DATA] | Nao |
+| Prontuario/ID | `\d{7,}` | [ID] | Nao |
+| Nome apos titulo | `Sr./Sra./Dr./Dra./Paciente:` | [NOME] | Nao |
+| Endereco | `Rua/Av./Avenida...` | [ENDERECO] | Nao |
+| CEP | `\d{5}-?\d{3}` | [CEP] | Nao |
+| Leito | `leito/box \d+` | [LEITO] | Nao |
+
+### Como testar anonimizacao
+
+1. Acesse `/gestor/casos`
+2. Clique em "Novo Caso"
+3. Cole um texto com dados sensiveis, exemplo:
+   ```
+   Paciente: Maria Silva, CPF 123.456.789-00
+   Telefone: (11) 98765-4321
+   Email: maria@email.com
+   Leito: 12A, prontuario 1234567890
+   Admissao: 15/01/2024
+   ```
+4. Clique em "Anonimizar"
+5. O texto anonimizado aparece no lado direito
+6. Veja as substituicoes feitas na secao "Resultado"
+
+### Como adicionar nova regra
+
+1. Via API:
+   ```bash
+   curl -X POST http://localhost:3001/anonymization-rules \
+     -H "Authorization: Bearer TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{"name":"RG","pattern":"\\b\\d{2}\\.?\\d{3}\\.?\\d{3}-?\\d{1}\\b","replacement":"[RG]","isCritical":true}'
+   ```
+
+2. Via seed (para todas as instalacoes):
+   Edite `apps/api/prisma/seed.ts` e adicione a regra no array `anonymizationRules`
+
+### Comportamento do bloqueio ao publicar
+
+- Quando tenta publicar um caso, o sistema roda o detector com regras **criticas** (CPF, telefone, email)
+- Se encontrar match, retorna erro 400 com lista dos dados encontrados
+- Usuario deve anonimizar novamente ou editar manualmente antes de publicar
+- Regras nao-criticas (data, leito, etc) nao bloqueiam publicacao
+
+### Auditoria
+
+Toda anonimizacao e publicacao registra:
+- `AnonymizationLog`: clinicalCaseId, actorUserId, appliedRulesCount, findings (JSON)
+- `AuditLog`: action (ANONYMIZE_CASE, PUBLISH_CASE, ARCHIVE_CASE), entity, entityId
+
+### Endpoints da API (Bloco 11)
+
+| Metodo | Rota | Autenticacao | Roles | Descricao |
+|--------|------|--------------|-------|-----------|
+| GET | /anonymization-rules | JWT | MANAGER+ | Lista regras |
+| POST | /anonymization-rules | JWT | ADMIN | Criar regra |
+| PATCH | /anonymization-rules/:id | JWT | ADMIN | Editar regra |
+| DELETE | /anonymization-rules/:id | JWT | ADMIN | Excluir regra |
+| GET | /cases | JWT | Todos | Lista casos |
+| GET | /cases/:id | JWT | Todos | Detalhe caso |
+| POST | /cases | JWT | MANAGER+ | Criar caso |
+| PATCH | /cases/:id | JWT | MANAGER+ | Editar caso |
+| POST | /cases/:id/anonymize | JWT | MANAGER+ | Anonimizar texto |
+| PATCH | /cases/:id/publish | JWT | MANAGER+ | Publicar caso |
+| PATCH | /cases/:id/archive | JWT | MANAGER+ | Arquivar caso |
+| DELETE | /cases/:id | JWT | ADMIN | Excluir caso |
+
+### Arquivos criados
+- `apps/api/src/anonymization-rules/*` - Modulo de regras de anonimizacao
+- `apps/api/src/cases/*` - Modulo de casos clinicos
+- `apps/api/prisma/migrations/20251218184227_add_clinical_cases_lgpd/`
+- `apps/web/src/app/gestor/casos/page.tsx`
+- `apps/web/src/app/casos/page.tsx`
+- `apps/web/src/app/casos/[id]/page.tsx`

@@ -90,6 +90,7 @@ model User {
   createdFAQs            FAQ[]
   notifications          Notification[]
   lessonLastSeen         LessonLastSeen[]
+  clinicalCases          ClinicalCase[]
 
   @@map("users")
 }
@@ -728,6 +729,61 @@ enum CertificateAuditEvent {
   ISSUED
   DOWNLOADED
   VERIFIED
+}
+
+// ============================================
+// CASOS CLÍNICOS E LGPD
+// ============================================
+
+model ClinicalCase {
+  id              String             @id @default(cuid())
+  instituteId     String
+  title           String
+  textAnonymized  String             @db.Text
+  status          ClinicalCaseStatus @default(DRAFT)
+  createdByUserId String
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  createdBy         User               @relation(fields: [createdByUserId], references: [id])
+  anonymizationLogs AnonymizationLog[]
+
+  @@map("clinical_cases")
+}
+
+enum ClinicalCaseStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+model AnonymizationRule {
+  id          String   @id @default(cuid())
+  instituteId String
+  name        String
+  pattern     String   // Regex pattern
+  replacement String   // Texto de substituição
+  isEnabled   Boolean  @default(true)
+  isCritical  Boolean  @default(false) // Se true, bloqueia publicação
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("anonymization_rules")
+}
+
+model AnonymizationLog {
+  id                String   @id @default(cuid())
+  instituteId       String
+  clinicalCaseId    String
+  actorUserId       String
+  appliedRulesCount Int
+  findings          Json     // { type: string, count: number }[]
+  createdAt         DateTime @default(now())
+
+  clinicalCase ClinicalCase @relation(fields: [clinicalCaseId], references: [id], onDelete: Cascade)
+
+  @@map("anonymization_logs")
 }
 
 // ============================================
