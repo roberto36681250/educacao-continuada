@@ -34,7 +34,13 @@ async function apiBase<T>(endpoint: string, options: ApiOptions = {}): Promise<T
   return response.json();
 }
 
-export const api = {
+// Legacy callable function for backward compatibility
+export async function api<T>(endpoint: string, options: ApiOptions = {}): Promise<T> {
+  return apiBase<T>(endpoint, options);
+}
+
+// Object-based API (preferred)
+export const apiClient = {
   get: <T>(endpoint: string) => apiBase<T>(endpoint, { method: 'GET' }),
   post: <T>(endpoint: string, body?: unknown) => apiBase<T>(endpoint, { method: 'POST', body }),
   patch: <T>(endpoint: string, body?: unknown) => apiBase<T>(endpoint, { method: 'PATCH', body }),

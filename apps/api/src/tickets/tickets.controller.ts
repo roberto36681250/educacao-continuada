@@ -14,6 +14,7 @@ import {
 } from '@nestjs/common';
 import { Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { Throttle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -29,8 +30,10 @@ export class TicketsController {
   // ALUNO ENDPOINTS
   // ============================================
 
+  // Rate limit: 30 requests per minute for ticket creation
   @Post('tickets')
   @UseGuards(JwtAuthGuard)
+  @Throttle({ default: { limit: 30, ttl: 60000 } })
   async createTicket(
     @Request() req: any,
     @Body()

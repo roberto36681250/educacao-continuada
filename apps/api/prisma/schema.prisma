@@ -91,6 +91,7 @@ model User {
   notifications          Notification[]
   lessonLastSeen         LessonLastSeen[]
   clinicalCases          ClinicalCase[]
+  emailPreference        EmailPreference?
 
   @@map("users")
 }
@@ -838,4 +839,92 @@ model AuditLog {
   user User? @relation(fields: [userId], references: [id])
 
   @@map("audit_logs")
+}
+
+// ============================================
+// E-MAIL E COMUNICAÇÃO
+// ============================================
+
+model EmailTemplate {
+  id              String   @id @default(cuid())
+  key             String   @unique // INVITE_CREATED, ASSIGNMENT_DUE_SOON, etc.
+  version         Int      @default(1)
+  subject         String
+  htmlBody        String   @db.Text
+  textBody        String   @db.Text
+  variablesSchema Json     // Lista de variáveis esperadas
+  isActive        Boolean  @default(true)
+  createdByUserId String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("email_templates")
+}
+
+model EmailOutbox {
+  id                String            @id @default(cuid())
+  instituteId       String
+  eventKey          String            // Tipo do evento
+  toEmail           String
+  toName            String?
+  templateKey       String
+  templateVersion   Int
+  payload           Json              // Variáveis para renderização
+  dedupKey          String            // Chave única para deduplicação
+  status            EmailOutboxStatus @default(PENDING)
+  scheduledAt       DateTime          @default(now())
+  sentAt            DateTime?
+  attempts          Int               @default(0)
+  lastError         String?           @db.Text
+  providerMessageId String?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  audits EmailAudit[]
+
+  @@unique([instituteId, dedupKey])
+  @@index([status, scheduledAt])
+  @@map("email_outbox")
+}
+
+enum EmailOutboxStatus {
+  PENDING
+  SENDING
+  SENT
+  FAILED
+  CANCELLED
+  SKIPPED
+}
+
+model EmailPreference {
+  id               String   @id @default(cuid())
+  userId           String   @unique
+  emailEnabled     Boolean  @default(true)
+  digestEnabled    Boolean  @default(true)
+  remindersEnabled Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("email_preferences")
+}
+
+model EmailAudit {
+  id        String           @id @default(cuid())
+  outboxId  String
+  action    EmailAuditAction
+  meta      Json?
+  createdAt DateTime         @default(now())
+
+  outbox EmailOutbox @relation(fields: [outboxId], references: [id], onDelete: Cascade)
+
+  @@map("email_audits")
+}
+
+enum EmailAuditAction {
+  ENQUEUED
+  SENT
+  FAILED
+  SKIPPED
 }

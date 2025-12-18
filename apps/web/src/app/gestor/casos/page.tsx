@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { api } from '@/lib/api';
+import { api, apiClient } from '@/lib/api';
 import LoadingState from '@/components/LoadingState';
 import EmptyState from '@/components/EmptyState';
 
@@ -44,7 +44,7 @@ export default function GestorCasosPage() {
 
   async function loadCases() {
     try {
-      const data = await api.get('/cases');
+      const data = await apiClient.get<ClinicalCase[]>('/cases');
       setCases(data);
     } catch (err) {
       console.error('Erro ao carregar casos:', err);
@@ -84,12 +84,12 @@ export default function GestorCasosPage() {
 
     try {
       if (editingCase) {
-        await api.patch(`/cases/${editingCase.id}`, {
+        await apiClient.patch(`/cases/${editingCase.id}`, {
           title,
           textAnonymized: anonymizedText || rawText,
         });
       } else {
-        await api.post('/cases', {
+        await apiClient.post('/cases', {
           title,
           textAnonymized: anonymizedText || rawText,
         });
@@ -117,7 +117,7 @@ export default function GestorCasosPage() {
 
       // Se nao tem caso, cria um rascunho primeiro
       if (!caseId) {
-        const newCase = await api.post('/cases', {
+        const newCase = await apiClient.post<ClinicalCase>('/cases', {
           title: title || 'Rascunho',
           textAnonymized: '',
         });
@@ -125,7 +125,7 @@ export default function GestorCasosPage() {
         setEditingCase(newCase);
       }
 
-      const result = await api.post(`/cases/${caseId}/anonymize`, {
+      const result = await apiClient.post<AnonymizationResult>(`/cases/${caseId}/anonymize`, {
         rawText,
       });
 
@@ -143,7 +143,7 @@ export default function GestorCasosPage() {
     setError('');
 
     try {
-      await api.patch(`/cases/${caseId}/publish`);
+      await apiClient.patch(`/cases/${caseId}/publish`);
       loadCases();
       setShowModal(false);
     } catch (err: any) {
@@ -165,7 +165,7 @@ export default function GestorCasosPage() {
     if (!confirm('Arquivar este caso?')) return;
 
     try {
-      await api.patch(`/cases/${caseId}/archive`);
+      await apiClient.patch(`/cases/${caseId}/archive`);
       loadCases();
     } catch (err: any) {
       alert(err.message || 'Erro ao arquivar');
@@ -176,7 +176,7 @@ export default function GestorCasosPage() {
     if (!confirm('Excluir este caso permanentemente?')) return;
 
     try {
-      await api.delete(`/cases/${caseId}`);
+      await apiClient.delete(`/cases/${caseId}`);
       loadCases();
     } catch (err: any) {
       alert(err.message || 'Erro ao excluir');

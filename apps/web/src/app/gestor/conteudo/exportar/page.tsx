@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { api } from '@/lib/api';
+import { api, apiClient } from '@/lib/api';
 import LoadingState from '@/components/LoadingState';
 
 interface Course {
@@ -23,7 +23,7 @@ export default function ExportarConteudoPage() {
 
   async function loadCourses() {
     try {
-      const data = await api.get<Course[]>('/courses?includeUnpublished=true');
+      const data = await apiClient.get<Course[]>('/courses?includeUnpublished=true');
       setCourses(data);
     } catch (err) {
       console.error('Erro ao carregar cursos:', err);
@@ -37,7 +37,7 @@ export default function ExportarConteudoPage() {
     setError('');
 
     try {
-      const data = await api.get<any>(`/gestor/export/course/${courseId}`);
+      const data = await apiClient.get<any>(`/gestor/export/course/${courseId}`);
 
       // Download JSON file
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });

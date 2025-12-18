@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { api } from '@/lib/api';
+import { api, apiClient } from '@/lib/api';
 
 interface ImportValidation {
   valid: boolean;
@@ -60,7 +60,7 @@ export default function ImportarConteudoPage() {
     setError('');
 
     try {
-      const result = await api.post<ImportValidation>('/gestor/import/course', {
+      const result = await apiClient.post<ImportValidation>('/gestor/import/course', {
         payload,
         mode: 'DRY_RUN',
       });
@@ -81,7 +81,7 @@ export default function ImportarConteudoPage() {
     setError('');
 
     try {
-      const result = await api.post<ImportResult>('/gestor/import/course', {
+      const result = await apiClient.post<ImportResult>('/gestor/import/course', {
         payload,
         mode: 'APPLY',
       });

@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
+import LoadingState from '@/components/LoadingState';
 
 type RankingType = 'UNIT_ALL' | 'INSTITUTE_PROFESSION' | 'UNIT_PROFESSION';
 
@@ -69,7 +70,7 @@ interface User {
   role: string;
 }
 
-export default function RankingsPage() {
+function RankingsPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -489,5 +490,13 @@ export default function RankingsPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function RankingsPage() {
+  return (
+    <Suspense fallback={<div className="max-w-6xl mx-auto p-6"><LoadingState message="Carregando rankings..." /></div>}>
+      <RankingsPageContent />
+    </Suspense>
   );
 }

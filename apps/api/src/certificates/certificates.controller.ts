@@ -10,6 +10,7 @@ import {
   Request,
 } from '@nestjs/common';
 import { Response, Request as ExpressRequest } from 'express';
+import { Throttle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -24,8 +25,10 @@ export class CertificatesController {
   // ALUNO ENDPOINTS
   // ============================================
 
+  // Rate limit: 10 requests per minute for certificate issuance
   @Post('courses/:courseId/certificates')
   @UseGuards(JwtAuthGuard)
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   async issueCertificate(
     @Param('courseId') courseId: string,
     @Request() req: any,

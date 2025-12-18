@@ -8,6 +8,7 @@ import {
   UseGuards,
   Request,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { InvitesService } from './invites.service';
 import { CreateInviteDto } from './dto/create-invite.dto';
 import { AcceptInviteDto } from './dto/accept-invite.dto';
@@ -39,7 +40,9 @@ export class InvitesController {
     return this.invitesService.findByToken(token);
   }
 
+  // Rate limit: 10 requests per minute for invite accept
   @Post(':token/accept')
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   async accept(
     @Param('token') token: string,
     @Body() dto: AcceptInviteDto,

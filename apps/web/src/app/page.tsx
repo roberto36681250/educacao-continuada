@@ -60,6 +60,14 @@ interface HomeDataGestor {
 
 type HomeData = HomeDataAluno | HomeDataGestor;
 
+function isGestorData(data: HomeData): data is HomeDataGestor {
+  return data.role !== 'USER';
+}
+
+function isAlunoData(data: HomeData): data is HomeDataAluno {
+  return data.role === 'USER';
+}
+
 export default function Home() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
@@ -135,8 +143,6 @@ export default function Home() {
     );
   }
 
-  const isGestor = homeData?.role !== 'USER';
-
   // Logged in - show dashboard
   return (
     <main className="min-h-screen bg-gray-50">
@@ -150,7 +156,7 @@ export default function Home() {
         </div>
 
         {/* Gestor Summary */}
-        {isGestor && homeData?.role !== 'USER' && (
+        {homeData && isGestorData(homeData) && (
           <div className="mb-8">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Resumo do Mes</h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -223,7 +229,7 @@ export default function Home() {
         )}
 
         {/* Aluno Home */}
-        {!isGestor && homeData?.role === 'USER' && (
+        {homeData && isAlunoData(homeData) && (
           <>
             {/* Continue watching */}
             {homeData.continueLesson && (

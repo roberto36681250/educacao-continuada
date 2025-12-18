@@ -7,6 +7,7 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
+import { EmailEnqueueService } from '../email/email-enqueue.service';
 import { CreateInviteDto } from './dto/create-invite.dto';
 import { AcceptInviteDto } from './dto/accept-invite.dto';
 
@@ -15,6 +16,7 @@ export class InvitesService {
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
+    private emailEnqueue: EmailEnqueueService,
   ) {}
 
   async create(dto: CreateInviteDto, creatorId: string) {
@@ -41,6 +43,40 @@ export class InvitesService {
     console.log(`   URL: ${inviteUrl}`);
     console.log(`   Email: ${dto.invitedEmail || '(qualquer)'}`);
     console.log(`   Expira em: ${expiresAt.toISOString()}`);
+
+    // Se tem email do convidado, enfileirar email de convite
+    if (dto.invitedEmail) {
+      // Buscar info do hospital e unidade para o template
+      const [hospital, unit] = await Promise.all([
+        dto.hospitalId
+          ? this.prisma.hospital.findUnique({
+              where: { id: dto.hospitalId },
+              select: { name: true },
+            })
+          : null,
+        dto.unitId
+          ? this.prisma.unit.findUnique({
+              where: { id: dto.unitId },
+              select: { name: true },
+            })
+          : null,
+      ]);
+
+      await this.emailEnqueue.enqueue({
+        instituteId: dto.instituteId,
+        eventKey: 'INVITE_CREATED',
+        toEmail: dto.invitedEmail,
+        toName: null,
+        templateKey: 'INVITE_CREATED',
+        payload: {
+          userName: dto.invitedEmail.split('@')[0],
+          hospitalName: hospital?.name || 'Não especificado',
+          unitName: unit?.name || 'Não especificada',
+          inviteUrl,
+        },
+        dedupKey: `invite-${invite.id}`,
+      });
+    }
 
     return {
       id: invite.id,

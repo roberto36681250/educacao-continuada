@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { api } from '@/lib/api';
+import { api, apiClient } from '@/lib/api';
 import LoadingState from '@/components/LoadingState';
 import EmptyState from '@/components/EmptyState';
 
@@ -28,7 +28,7 @@ export default function CasosPage() {
 
   async function loadCases() {
     try {
-      const data = await api.get('/cases');
+      const data = await apiClient.get<ClinicalCase[]>('/cases');
       // Filtra apenas PUBLISHED para alunos (API ja faz isso, mas garantimos aqui)
       setCases(data.filter((c: ClinicalCase) => c.status === 'PUBLISHED'));
     } catch (err) {

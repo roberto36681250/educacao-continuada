@@ -6,10 +6,16 @@
     "dev": "pnpm run --parallel dev",
     "build": "pnpm run --recursive build",
     "lint": "pnpm run --recursive lint",
-    "test": "pnpm run --recursive test"
+    "test": "pnpm run --recursive test",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:report": "playwright show-report"
   },
   "engines": {
     "node": ">=18",
     "pnpm": ">=8"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.57.0"
   }
 }

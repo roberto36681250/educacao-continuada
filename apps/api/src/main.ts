@@ -1,10 +1,20 @@
 import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
+import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';
+import { SentryExceptionFilter } from './common/sentry';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, {
+    bufferLogs: true,
+  });
+
+  // Use pino logger
+  app.useLogger(app.get(Logger));
+
+  // Global exception filter for Sentry
+  app.useGlobalFilters(new SentryExceptionFilter());
 
   app.useGlobalPipes(
     new ValidationPipe({
@@ -19,7 +29,10 @@ async function bootstrap() {
     credentials: true,
   });
 
-  await app.listen(3001);
-  console.log('API running on http://localhost:3001');
+  const port = process.env.PORT || 3001;
+  await app.listen(port);
+
+  const logger = app.get(Logger);
+  logger.log(`API running on http://localhost:${port}`);
 }
 bootstrap();

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { api } from '@/lib/api';
+import { api, apiClient } from '@/lib/api';
 import LoadingState from '@/components/LoadingState';
 
 interface CourseVersion {
@@ -44,8 +44,8 @@ export default function CursoVersoesPage() {
   async function loadData() {
     try {
       const [courseData, versionsResult] = await Promise.all([
-        api.get<CourseData>(`/courses/${courseId}`),
-        api.get<VersionsData>(`/courses/${courseId}/versions`),
+        apiClient.get<CourseData>(`/courses/${courseId}`),
+        apiClient.get<VersionsData>(`/courses/${courseId}/versions`),
       ]);
       setCourse(courseData);
       setVersionsData(versionsResult);
@@ -65,7 +65,7 @@ export default function CursoVersoesPage() {
     setError('');
 
     try {
-      await api.patch(`/courses/${courseId}/publish`);
+      await apiClient.patch(`/courses/${courseId}/publish`);
       loadData();
     } catch (err: any) {
       setError(err.message || 'Erro ao publicar');

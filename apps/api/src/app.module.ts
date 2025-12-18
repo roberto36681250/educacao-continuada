@@ -1,7 +1,10 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { AppController } from './app.controller';
 import { PrismaModule } from './prisma/prisma.module';
+import { LoggingModule } from './common/logging';
+import { SentryModule } from './common/sentry';
+import { ThrottleModule } from './common/throttle';
+import { HealthModule } from './health/health.module';
 import { AuthModule } from './auth/auth.module';
 import { InvitesModule } from './invites/invites.module';
 import { InstitutesModule } from './institutes/institutes.module';
@@ -23,11 +26,16 @@ import { HomeModule } from './home/home.module';
 import { AnonymizationRulesModule } from './anonymization-rules/anonymization-rules.module';
 import { CasesModule } from './cases/cases.module';
 import { ContentManagementModule } from './content-management/content-management.module';
+import { EmailModule } from './email/email.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    LoggingModule,
+    SentryModule,
+    ThrottleModule,
     PrismaModule,
+    HealthModule,
     AuthModule,
     InvitesModule,
     InstitutesModule,
@@ -49,8 +57,9 @@ import { ContentManagementModule } from './content-management/content-management
     AnonymizationRulesModule,
     CasesModule,
     ContentManagementModule,
+    EmailModule,
   ],
-  controllers: [AppController],
+  controllers: [],
   providers: [],
 })
 export class AppModule {}

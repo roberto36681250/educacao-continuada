@@ -107,12 +107,14 @@ async function main() {
   console.log('✅ Admin Master criado:', adminMaster.email, '(senha: admin123)');
 
   // 5. Criar usuários de exemplo com profissões diferentes
+  const userPasswordHash = await bcrypt.hash('user123', 10);
   const medicoR1 = await prisma.user.upsert({
     where: { email: 'medico.r1@exemplo.com' },
-    update: {},
+    update: { passwordHash: userPasswordHash },
     create: {
       id: 'user-medico-r1',
       email: 'medico.r1@exemplo.com',
+      passwordHash: userPasswordHash,
       name: 'Dr. João Silva',
       cpf: '11111111111',
       phone: '11988888888',
@@ -125,10 +127,11 @@ async function main() {
 
   const enfermeira = await prisma.user.upsert({
     where: { email: 'enfermeira@exemplo.com' },
-    update: {},
+    update: { passwordHash: userPasswordHash },
     create: {
       id: 'user-enfermeira',
       email: 'enfermeira@exemplo.com',
+      passwordHash: userPasswordHash,
       name: 'Maria Santos',
       cpf: '22222222222',
       phone: '11977777777',
@@ -141,10 +144,11 @@ async function main() {
 
   const fisioterapeuta = await prisma.user.upsert({
     where: { email: 'fisio@exemplo.com' },
-    update: {},
+    update: { passwordHash: userPasswordHash },
     create: {
       id: 'user-fisioterapeuta',
       email: 'fisio@exemplo.com',
+      passwordHash: userPasswordHash,
       name: 'Carlos Oliveira',
       cpf: '33333333333',
       phone: '11966666666',
@@ -304,6 +308,258 @@ async function main() {
     });
   }
   console.log('✅ Regras de anonimização criadas:', anonymizationRules.length, 'regras');
+
+  // 8. Criar templates de e-mail
+  const emailTemplates = [
+    {
+      id: 'template-invite-created',
+      key: 'INVITE_CREATED',
+      subject: 'Convite para Educação Continuada',
+      htmlBody: `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <h1 style="color: #2563eb;">Convite para Educação Continuada</h1>
+  <p>Olá <strong>{{userName}}</strong>,</p>
+  <p>Você foi convidado para participar da plataforma de Educação Continuada.</p>
+  <p><strong>Hospital:</strong> {{hospitalName}}</p>
+  <p><strong>Unidade:</strong> {{unitName}}</p>
+  <p>Para aceitar o convite e criar sua conta, clique no botão abaixo:</p>
+  <p style="text-align: center; margin: 30px 0;">
+    <a href="{{inviteUrl}}" style="background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">Aceitar Convite</a>
+  </p>
+  <p style="color: #6b7280; font-size: 12px;">Este convite expira em 7 dias.</p>
+</body>
+</html>`.trim(),
+      textBody: `Convite para Educação Continuada
+
+Olá {{userName}},
+
+Você foi convidado para participar da plataforma de Educação Continuada.
+
+Hospital: {{hospitalName}}
+Unidade: {{unitName}}
+
+Para aceitar o convite, acesse: {{inviteUrl}}
+
+Este convite expira em 7 dias.`,
+      variablesSchema: [
+        { name: 'userName', required: true },
+        { name: 'hospitalName', required: true },
+        { name: 'unitName', required: true },
+        { name: 'inviteUrl', required: true },
+      ],
+    },
+    {
+      id: 'template-assignment-due-soon',
+      key: 'ASSIGNMENT_DUE_SOON',
+      subject: 'Lembrete: Treinamento com prazo próximo',
+      htmlBody: `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <h1 style="color: #f59e0b;">Lembrete de Prazo</h1>
+  <p>Olá <strong>{{userName}}</strong>,</p>
+  <p>Você tem um treinamento com prazo próximo:</p>
+  <div style="background-color: #fef3c7; padding: 16px; border-radius: 8px; margin: 20px 0;">
+    <p style="margin: 0;"><strong>Curso:</strong> {{courseName}}</p>
+    <p style="margin: 8px 0 0;"><strong>Prazo:</strong> {{dueDate}}</p>
+    <p style="margin: 8px 0 0;"><strong>Progresso:</strong> {{progress}}%</p>
+  </div>
+  <p style="text-align: center; margin: 30px 0;">
+    <a href="{{courseUrl}}" style="background-color: #f59e0b; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">Continuar Treinamento</a>
+  </p>
+</body>
+</html>`.trim(),
+      textBody: `Lembrete de Prazo
+
+Olá {{userName}},
+
+Você tem um treinamento com prazo próximo:
+
+Curso: {{courseName}}
+Prazo: {{dueDate}}
+Progresso: {{progress}}%
+
+Acesse: {{courseUrl}}`,
+      variablesSchema: [
+        { name: 'userName', required: true },
+        { name: 'courseName', required: true },
+        { name: 'dueDate', required: true },
+        { name: 'progress', required: true },
+        { name: 'courseUrl', required: true },
+      ],
+    },
+    {
+      id: 'template-assignment-overdue',
+      key: 'ASSIGNMENT_OVERDUE',
+      subject: '⚠️ Treinamento em atraso',
+      htmlBody: `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <h1 style="color: #dc2626;">Treinamento em Atraso</h1>
+  <p>Olá <strong>{{userName}}</strong>,</p>
+  <p>O prazo do seu treinamento expirou:</p>
+  <div style="background-color: #fee2e2; padding: 16px; border-radius: 8px; margin: 20px 0;">
+    <p style="margin: 0;"><strong>Curso:</strong> {{courseName}}</p>
+    <p style="margin: 8px 0 0;"><strong>Prazo expirado em:</strong> {{dueDate}}</p>
+    <p style="margin: 8px 0 0;"><strong>Progresso:</strong> {{progress}}%</p>
+  </div>
+  <p>Por favor, complete o treinamento o mais rápido possível.</p>
+  <p style="text-align: center; margin: 30px 0;">
+    <a href="{{courseUrl}}" style="background-color: #dc2626; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">Completar Agora</a>
+  </p>
+</body>
+</html>`.trim(),
+      textBody: `Treinamento em Atraso
+
+Olá {{userName}},
+
+O prazo do seu treinamento expirou:
+
+Curso: {{courseName}}
+Prazo expirado em: {{dueDate}}
+Progresso: {{progress}}%
+
+Por favor, complete o treinamento o mais rápido possível.
+
+Acesse: {{courseUrl}}`,
+      variablesSchema: [
+        { name: 'userName', required: true },
+        { name: 'courseName', required: true },
+        { name: 'dueDate', required: true },
+        { name: 'progress', required: true },
+        { name: 'courseUrl', required: true },
+      ],
+    },
+    {
+      id: 'template-review-due',
+      key: 'REVIEW_DUE',
+      subject: 'Avaliação pendente de revisão',
+      htmlBody: `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <h1 style="color: #7c3aed;">Avaliação Pendente</h1>
+  <p>Olá <strong>{{reviewerName}}</strong>,</p>
+  <p>Você tem uma avaliação pendente de revisão:</p>
+  <div style="background-color: #ede9fe; padding: 16px; border-radius: 8px; margin: 20px 0;">
+    <p style="margin: 0;"><strong>Aluno:</strong> {{studentName}}</p>
+    <p style="margin: 8px 0 0;"><strong>Competência:</strong> {{competencyName}}</p>
+    <p style="margin: 8px 0 0;"><strong>Aguardando desde:</strong> {{submittedDate}}</p>
+  </div>
+  <p style="text-align: center; margin: 30px 0;">
+    <a href="{{reviewUrl}}" style="background-color: #7c3aed; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">Revisar Avaliação</a>
+  </p>
+</body>
+</html>`.trim(),
+      textBody: `Avaliação Pendente
+
+Olá {{reviewerName}},
+
+Você tem uma avaliação pendente de revisão:
+
+Aluno: {{studentName}}
+Competência: {{competencyName}}
+Aguardando desde: {{submittedDate}}
+
+Acesse: {{reviewUrl}}`,
+      variablesSchema: [
+        { name: 'reviewerName', required: true },
+        { name: 'studentName', required: true },
+        { name: 'competencyName', required: true },
+        { name: 'submittedDate', required: true },
+        { name: 'reviewUrl', required: true },
+      ],
+    },
+    {
+      id: 'template-weekly-digest',
+      key: 'WEEKLY_DIGEST',
+      subject: 'Resumo Semanal - Educação Continuada',
+      htmlBody: `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <h1 style="color: #2563eb;">Resumo Semanal</h1>
+  <p>Olá <strong>{{userName}}</strong>,</p>
+  <p>Confira o resumo da semana na plataforma de Educação Continuada:</p>
+
+  <div style="background-color: #f3f4f6; padding: 16px; border-radius: 8px; margin: 20px 0;">
+    <h3 style="margin: 0 0 12px; color: #374151;">📊 Métricas da Semana</h3>
+    <p style="margin: 4px 0;"><strong>Usuários ativos:</strong> {{activeUsers}}</p>
+    <p style="margin: 4px 0;"><strong>Aulas completadas:</strong> {{completedLessons}}</p>
+    <p style="margin: 4px 0;"><strong>Quizzes realizados:</strong> {{quizzesCompleted}}</p>
+    <p style="margin: 4px 0;"><strong>Certificados emitidos:</strong> {{certificatesIssued}}</p>
+  </div>
+
+  <div style="background-color: #fef3c7; padding: 16px; border-radius: 8px; margin: 20px 0;">
+    <h3 style="margin: 0 0 12px; color: #92400e;">⚠️ Atenção</h3>
+    <p style="margin: 4px 0;"><strong>Treinamentos em atraso:</strong> {{overdueCount}}</p>
+    <p style="margin: 4px 0;"><strong>Avaliações pendentes:</strong> {{pendingReviews}}</p>
+  </div>
+
+  <p style="text-align: center; margin: 30px 0;">
+    <a href="{{dashboardUrl}}" style="background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">Ver Dashboard Completo</a>
+  </p>
+</body>
+</html>`.trim(),
+      textBody: `Resumo Semanal - Educação Continuada
+
+Olá {{userName}},
+
+Confira o resumo da semana:
+
+📊 Métricas da Semana
+- Usuários ativos: {{activeUsers}}
+- Aulas completadas: {{completedLessons}}
+- Quizzes realizados: {{quizzesCompleted}}
+- Certificados emitidos: {{certificatesIssued}}
+
+⚠️ Atenção
+- Treinamentos em atraso: {{overdueCount}}
+- Avaliações pendentes: {{pendingReviews}}
+
+Acesse o dashboard: {{dashboardUrl}}`,
+      variablesSchema: [
+        { name: 'userName', required: true },
+        { name: 'activeUsers', required: true },
+        { name: 'completedLessons', required: true },
+        { name: 'quizzesCompleted', required: true },
+        { name: 'certificatesIssued', required: true },
+        { name: 'overdueCount', required: true },
+        { name: 'pendingReviews', required: true },
+        { name: 'dashboardUrl', required: true },
+      ],
+    },
+  ];
+
+  for (const template of emailTemplates) {
+    await prisma.emailTemplate.upsert({
+      where: { id: template.id },
+      update: {
+        subject: template.subject,
+        htmlBody: template.htmlBody,
+        textBody: template.textBody,
+        variablesSchema: template.variablesSchema,
+      },
+      create: {
+        id: template.id,
+        key: template.key,
+        subject: template.subject,
+        htmlBody: template.htmlBody,
+        textBody: template.textBody,
+        variablesSchema: template.variablesSchema,
+        createdByUserId: adminMaster.id,
+      },
+    });
+  }
+  console.log('✅ Templates de e-mail criados:', emailTemplates.length, 'templates');
 
   console.log('🎉 Seed concluído com sucesso!');
 }

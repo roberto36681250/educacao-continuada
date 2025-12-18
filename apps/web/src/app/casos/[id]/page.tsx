@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { api } from '@/lib/api';
+import { api, apiClient } from '@/lib/api';
 import LoadingState from '@/components/LoadingState';
 
 interface ClinicalCase {
@@ -31,7 +31,7 @@ export default function CasoDetailPage() {
 
   async function loadCase() {
     try {
-      const data = await api.get(`/cases/${params.id}`);
+      const data = await apiClient.get<ClinicalCase>(`/cases/${params.id}`);
       setCaseData(data);
     } catch (err: any) {
       setError(err.message || 'Caso nao encontrado');
