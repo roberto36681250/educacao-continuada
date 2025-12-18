@@ -214,6 +214,16 @@ export default function Home() {
               Veja suas informações e lotação
             </p>
           </button>
+
+          <button
+            onClick={() => router.push('/certificados')}
+            className="bg-white rounded-lg shadow p-6 text-left hover:shadow-md transition-shadow"
+          >
+            <h3 className="text-lg font-semibold text-gray-900">Meus Certificados</h3>
+            <p className="text-gray-600 text-sm mt-1">
+              Veja e baixe seus certificados
+            </p>
+          </button>
         </div>
 
         {/* Role-specific actions */}
@@ -279,6 +289,13 @@ export default function Home() {
               >
                 <h3 className="font-medium text-green-900">Rankings</h3>
                 <p className="text-green-700 text-sm">Ver desempenho</p>
+              </button>
+              <button
+                onClick={() => router.push('/gestor/certificados')}
+                className="bg-green-50 rounded-lg p-4 text-left hover:bg-green-100 transition-colors"
+              >
+                <h3 className="font-medium text-green-900">Certificados</h3>
+                <p className="text-green-700 text-sm">Ver certificados emitidos</p>
               </button>
             </div>
           </div>

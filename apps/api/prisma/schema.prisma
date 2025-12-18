@@ -81,6 +81,7 @@ model User {
   createdInvites       InviteToken[]
   createdAssignments   Assignment[]           @relation("AssignmentCreator")
   assignmentStatuses   UserAssignmentStatus[]
+  certificates         Certificate[]
 
   @@map("users")
 }
@@ -122,11 +123,12 @@ model Course {
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
-  institute    Institute    @relation(fields: [instituteId], references: [id])
+  institute    Institute     @relation(fields: [instituteId], references: [id])
   modules      Module[]
   competencies Competency[]
   tickets      Ticket[]
   assignments  Assignment[]
+  certificates Certificate[]
 
   @@map("courses")
 }
@@ -473,6 +475,50 @@ enum UserAssignmentStatusEnum {
   IN_PROGRESS
   COMPLETED_ON_TIME
   COMPLETED_LATE
+}
+
+// ============================================
+// CERTIFICADOS
+// ============================================
+
+model Certificate {
+  id          String   @id @default(cuid())
+  code        String   @unique // Código curto para verificação (ex: ABC123XY)
+  instituteId String
+  userId      String
+  courseId    String
+  issuedAt    DateTime @default(now())
+  totalHours  Int?     // Carga horária (opcional no MVP)
+  pdfPath     String?  // Caminho do PDF no filesystem
+  metadata    Json?    // Dados adicionais: nome usuário, nome curso, etc.
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user   User   @relation(fields: [userId], references: [id])
+  course Course @relation(fields: [courseId], references: [id])
+  audits CertificateAudit[]
+
+  @@unique([userId, courseId]) // Um certificado por curso por usuário
+  @@map("certificates")
+}
+
+model CertificateAudit {
+  id            String               @id @default(cuid())
+  certificateId String
+  event         CertificateAuditEvent
+  ipAddress     String?
+  userAgent     String?
+  createdAt     DateTime             @default(now())
+
+  certificate Certificate @relation(fields: [certificateId], references: [id], onDelete: Cascade)
+
+  @@map("certificate_audits")
+}
+
+enum CertificateAuditEvent {
+  ISSUED
+  DOWNLOADED
+  VERIFIED
 }
 
 // ============================================

@@ -33,6 +33,17 @@ interface UserData {
   name: string;
 }
 
+interface CourseProgress {
+  totalLessons: number;
+  completedLessons: number;
+  isCompleted: boolean;
+}
+
+interface Certificate {
+  id: string;
+  code: string;
+}
+
 export default function CursoPage() {
   const router = useRouter();
   const params = useParams();
@@ -40,7 +51,10 @@ export default function CursoPage() {
 
   const [user, setUser] = useState<UserData | null>(null);
   const [course, setCourse] = useState<Course | null>(null);
+  const [progress, setProgress] = useState<CourseProgress | null>(null);
+  const [certificate, setCertificate] = useState<Certificate | null>(null);
   const [loading, setLoading] = useState(true);
+  const [issuingCertificate, setIssuingCertificate] = useState(false);
   const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set());
 
   useEffect(() => {
@@ -51,6 +65,20 @@ export default function CursoPage() {
 
         const courseData = await api<Course>(`/courses/${courseId}`);
         setCourse(courseData);
+
+        // Load progress
+        await loadProgress(courseData);
+
+        // Check if certificate already exists
+        try {
+          const certs = await api<Certificate[]>('/me/certificates');
+          const existingCert = certs.find((c: any) => c.course?.id === courseId);
+          if (existingCert) {
+            setCertificate(existingCert);
+          }
+        } catch {
+          // Ignore certificate check errors
+        }
 
         // Expandir primeiro módulo automaticamente
         if (courseData.modules.length > 0) {
@@ -77,6 +105,81 @@ export default function CursoPage() {
     }
     loadData();
   }, [router, courseId]);
+
+  async function loadProgress(courseData: Course) {
+    try {
+      // Count total lessons
+      let totalLessons = 0;
+      for (const module of courseData.modules) {
+        totalLessons += module._count.lessons;
+      }
+
+      // Get user's lesson approvals for this course
+      // We'll check each module's lessons
+      let completedLessons = 0;
+      for (const module of courseData.modules) {
+        const lessons = await api<Lesson[]>(`/lessons?moduleId=${module.id}`);
+        for (const lesson of lessons) {
+          try {
+            const quizState = await api<any>(`/lessons/${lesson.id}/quiz-state`);
+            if (quizState.hasPassed) {
+              completedLessons++;
+            }
+          } catch {
+            // Lesson not completed
+          }
+        }
+      }
+
+      setProgress({
+        totalLessons,
+        completedLessons,
+        isCompleted: totalLessons > 0 && completedLessons === totalLessons,
+      });
+    } catch (err) {
+      console.error('Error loading progress:', err);
+    }
+  }
+
+  async function handleIssueCertificate() {
+    setIssuingCertificate(true);
+    try {
+      const result = await api<{ certificate: Certificate; downloadUrl: string }>(`/courses/${courseId}/certificates`, {
+        method: 'POST',
+      });
+      setCertificate(result.certificate);
+      alert('Certificado emitido com sucesso!');
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Erro ao emitir certificado');
+    } finally {
+      setIssuingCertificate(false);
+    }
+  }
+
+  async function handleDownloadCertificate() {
+    if (!certificate) return;
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/certificates/download/${certificate.code}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      if (!response.ok) throw new Error('Erro ao baixar');
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `certificado-${certificate.code}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err) {
+      alert('Erro ao baixar certificado');
+    }
+  }
 
   const toggleModule = async (moduleId: string) => {
     if (expandedModules.has(moduleId)) {
@@ -137,6 +240,71 @@ export default function CursoPage() {
             <p className="text-gray-600">{course.description}</p>
           )}
         </div>
+
+        {/* Progresso e Certificado */}
+        {progress && (
+          <div className="bg-white shadow-md rounded-lg p-6 mb-6">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-semibold text-gray-900">Seu Progresso</h3>
+              <span className="text-sm text-gray-500">
+                {progress.completedLessons} / {progress.totalLessons} aulas concluídas
+              </span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-3 mb-4">
+              <div
+                className={`h-3 rounded-full transition-all ${
+                  progress.isCompleted ? 'bg-green-500' : 'bg-blue-500'
+                }`}
+                style={{
+                  width: `${
+                    progress.totalLessons > 0
+                      ? (progress.completedLessons / progress.totalLessons) * 100
+                      : 0
+                  }%`,
+                }}
+              />
+            </div>
+
+            {progress.isCompleted && (
+              <div className="border-t pt-4 mt-4">
+                {certificate ? (
+                  <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg p-4">
+                    <div className="flex items-center gap-3">
+                      <span className="text-3xl">🎓</span>
+                      <div>
+                        <p className="font-semibold text-green-800">Certificado Emitido!</p>
+                        <p className="text-sm text-green-600">Código: {certificate.code}</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={handleDownloadCertificate}
+                      className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                    >
+                      Baixar PDF
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div className="flex items-center gap-3">
+                      <span className="text-3xl">🏆</span>
+                      <div>
+                        <p className="font-semibold text-blue-800">Parabéns! Curso concluído!</p>
+                        <p className="text-sm text-blue-600">Você pode emitir seu certificado.</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={handleIssueCertificate}
+                      disabled={issuingCertificate}
+                      className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+                    >
+                      {issuingCertificate ? 'Emitindo...' : 'Emitir Certificado'}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Lista de módulos */}
         <h2 className="text-xl font-semibold mb-4">Conteúdo do Curso</h2>

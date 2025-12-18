@@ -12,6 +12,7 @@ import { ModulesModule } from './modules/modules.module';
 import { LessonsModule } from './lessons/lessons.module';
 import { QuizzesModule } from './quizzes/quizzes.module';
 import { AssignmentsModule } from './assignments/assignments.module';
+import { CertificatesModule } from './certificates/certificates.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { AssignmentsModule } from './assignments/assignments.module';
     LessonsModule,
     QuizzesModule,
     AssignmentsModule,
+    CertificatesModule,
   ],
   controllers: [AppController],
   providers: [],
