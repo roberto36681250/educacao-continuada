@@ -1,0 +1,84 @@
+# Render Blueprint - Educacao Continuada
+# https://render.com/docs/blueprint-spec
+
+services:
+  # ===========================================
+  # API - Web Service
+  # ===========================================
+  - type: web
+    name: educacao-continuada-api
+    runtime: node
+    region: oregon
+    plan: starter
+    buildCommand: |
+      pnpm install --frozen-lockfile
+      pnpm --filter api prisma generate
+      pnpm --filter api build
+    startCommand: pnpm --filter api start:prod
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3001
+      - key: DATABASE_URL
+        sync: false
+      - key: DIRECT_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: SENTRY_DSN
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
+      - key: APP_BASE_URL
+        sync: false
+      - key: WEB_URL
+        sync: false
+      - key: EMAIL_WORKER_ENABLED
+        value: "false"
+
+  # ===========================================
+  # Email Worker - Background Worker
+  # ===========================================
+  - type: worker
+    name: educacao-continuada-worker
+    runtime: node
+    region: oregon
+    plan: starter
+    buildCommand: |
+      pnpm install --frozen-lockfile
+      pnpm --filter api prisma generate
+    startCommand: pnpm --filter api worker:email
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromService:
+          type: web
+          name: educacao-continuada-api
+          envVarKey: DATABASE_URL
+      - key: DIRECT_URL
+        fromService:
+          type: web
+          name: educacao-continuada-api
+          envVarKey: DIRECT_URL
+      - key: RESEND_API_KEY
+        fromService:
+          type: web
+          name: educacao-continuada-api
+          envVarKey: RESEND_API_KEY
+      - key: EMAIL_FROM
+        fromService:
+          type: web
+          name: educacao-continuada-api
+          envVarKey: EMAIL_FROM
+      - key: APP_BASE_URL
+        fromService:
+          type: web
+          name: educacao-continuada-api
+          envVarKey: APP_BASE_URL
+      - key: EMAIL_WORKER_ENABLED
+        value: "true"

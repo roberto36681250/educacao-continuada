@@ -24,9 +24,25 @@ async function bootstrap() {
     }),
   );
 
+  // CORS configuration - supports multiple origins via comma-separated WEB_URL
+  const allowedOrigins = process.env.WEB_URL
+    ? process.env.WEB_URL.split(',').map((url) => url.trim())
+    : ['http://localhost:3000'];
+
   app.enableCors({
-    origin: process.env.WEB_URL || 'http://localhost:3000',
+    origin: (origin, callback) => {
+      // Allow requests with no origin (mobile apps, curl, etc.)
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error(`Origin ${origin} not allowed by CORS`));
+      }
+    },
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-Id'],
   });
 
   const port = process.env.PORT || 3001;
