@@ -12,7 +12,7 @@ services:
     plan: starter
     buildCommand: |
       pnpm install --frozen-lockfile
-      pnpm --filter api prisma generate
+      cd apps/api && npx prisma migrate deploy && npx prisma generate && cd ../..
       pnpm --filter api build
     startCommand: pnpm --filter api start:prod
     healthCheckPath: /health
@@ -50,7 +50,7 @@ services:
     plan: starter
     buildCommand: |
       pnpm install --frozen-lockfile
-      pnpm --filter api prisma generate
+      cd apps/api && npx prisma generate && cd ../..
     startCommand: pnpm --filter api worker:email
     envVars:
       - key: NODE_ENV
