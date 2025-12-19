@@ -7,6 +7,7 @@ import {
   Param,
   Query,
   UseGuards,
+  Request,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
@@ -49,5 +50,16 @@ export class CoursesController {
   @Roles(UserRole.ADMIN_MASTER, UserRole.ADMIN, UserRole.MANAGER)
   update(@Param('id') id: string, @Body() dto: UpdateCourseDto) {
     return this.coursesService.update(id, dto);
+  }
+
+  // ============================================
+  // WORKFLOW EDITORIAL
+  // ============================================
+
+  @Post(':id/publish')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN_MASTER, UserRole.ADMIN, UserRole.MANAGER)
+  publishCourse(@Param('id') id: string, @Request() req: any) {
+    return this.coursesService.publishCourse(id, req.user.userId);
   }
 }

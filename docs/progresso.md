@@ -926,3 +926,198 @@ Toda anonimizacao e publicacao registra:
 - `apps/web/src/app/gestor/casos/page.tsx`
 - `apps/web/src/app/casos/page.tsx`
 - `apps/web/src/app/casos/[id]/page.tsx`
+
+---
+
+## Bloco 12 - Quiz Editor Avançado
+**Status**: Concluído
+
+### O que foi feito
+- Editor de quiz com drag-and-drop para reordenar questões
+- Importação de questões do banco de competências
+- Validação de quiz (mín. 5 questões, 2 opções por questão, resposta correta)
+- Página `/professor/aulas/[id]/quiz-editor`
+
+---
+
+## Bloco 13 - Export/Import de Cursos
+**Status**: Concluído
+
+### O que foi feito
+- Exportação de cursos completos em JSON
+- Importação com modo DRY_RUN para preview
+- Modo APPLY para importar de fato
+- Página `/gestor/conteudo/exportar` e `/gestor/conteudo/importar`
+
+---
+
+## Bloco 14 - Comunicação e Atribuições Avançadas
+**Status**: Concluído
+
+### O que foi feito
+- Sistema de comunicados por push (Gestor → Alunos)
+- Novos escopos de atribuição: INSTITUTE_ALL, HOSPITAL_ALL, INDIVIDUAL
+- Preview de alunos afetados antes de criar atribuição
+- Página `/gestor/comunicacao` e `/gestor/atribuicoes`
+
+---
+
+## Bloco 15A - Deploy e Infraestrutura de Produção
+**Status**: Concluído
+
+### O que foi feito
+- Configuração para deploy no Render
+- Dockerfile e docker-compose
+- Variáveis de ambiente de produção
+- Health checks configurados
+
+---
+
+## Bloco 16 - Workflow Editorial
+**Status**: Concluído
+
+### O que foi feito
+
+#### Schema Prisma
+- **ContentStatus**: Novo valor `READY` (aula passou no checklist, pronta para publicar)
+- **Lesson**: Novos campos `readyAt` (DateTime) e `readinessReport` (JSON)
+- **LessonEditLock**: Lock de edição de aula (lessonId, lockedByUserId, expiresAt)
+
+#### API (NestJS) - LessonsModule
+
+- **GET `/lessons/:id/readiness`**: Verifica checklist de prontidão
+  - Retorna `ReadinessReport` com `isReady`, `checklist[]`, `warnings[]`, `checkedAt`
+
+- **POST `/lessons/:id/readiness`**: Recalcula readiness e atualiza status para READY se aprovado
+
+- **POST `/lessons/:id/publish`**: Publica aula
+  - Só permite se status = READY
+  - ADMIN/ADMIN_MASTER podem publicar direto
+  - MANAGER pode publicar se `allowProfessorPublish = true`
+  - Registra auditoria
+
+- **POST `/lessons/:id/duplicate`**: Duplica aula com quiz, questões, opções e competências
+  - Parâmetros: `targetModuleId`, `newTitle` (opcional, padrão: "Cópia de {título}")
+  - Cria nova aula com status DRAFT
+  - Copia quiz completo (questões, opções, competências)
+  - Registra auditoria
+
+- **POST `/modules/:id/lessons/bulk`**: Criação em lote
+  - Parâmetro: `titles[]` (array de títulos)
+  - Cria múltiplas aulas vazias no módulo
+  - Retorna `{ created: number, lessons: Lesson[] }`
+
+- **GET `/lessons/:id/lock`**: Verifica status do lock
+- **POST `/lessons/:id/lock`**: Adquire lock (10 minutos)
+- **DELETE `/lessons/:id/lock`**: Libera lock
+
+#### API (NestJS) - ModulesModule
+- **POST `/modules/:id/publish`**: Publica módulo
+  - Requer ao menos 1 aula PUBLISHED
+
+#### API (NestJS) - CoursesModule
+- **POST `/courses/:id/publish`**: Publica curso
+  - Requer ao menos 1 módulo PUBLISHED
+  - Valida quizzes das aulas publicadas
+
+#### Web (Next.js)
+
+- **`/professor/aulas/[id]/wizard`**: Wizard de 6 passos para editar aula
+  1. **Título**: Nome da aula
+  2. **Vídeo**: YouTube Video ID + duração
+  3. **Conteúdo**: Resumo prático + Checklist do amanhã
+  4. **Quiz**: Link para quiz-editor (exibe status do quiz)
+  5. **Competências**: Link para gerenciar competências da aula
+  6. **Publicar**: Mostra checklist de readiness + botão publicar
+  - Adquire lock ao abrir, renova a cada 5 min, libera ao sair
+  - Bloqueia edição se outro usuário tiver o lock
+
+- **`/professor/cursos/[id]`**: Atualizado com novos botões
+  - Badge de status READY (azul)
+  - Botão "Wizard" em cada aula (link para wizard)
+  - Botão "Duplicar" em cada aula
+  - Botão "Criar Aulas em Lote" no módulo (permite configurar quantidade)
+  - Botão "Publicar" em cada aula (só aparece se status = READY)
+  - Botão "Publicar" em cada módulo
+  - Botão "Publicar Curso" no cabeçalho
+
+### Checklist de Readiness
+
+A aula recebe status READY quando passa em todos os critérios:
+
+| Critério | Validação |
+|----------|-----------|
+| Título | Obrigatório |
+| YouTube Video ID | Obrigatório |
+| Duração | > 0 segundos |
+| Resumo Prático | Obrigatório |
+| Checklist do Amanhã | Obrigatório |
+| Quiz | Deve existir |
+| Questões | Mínimo 5 questões |
+| Opções por questão | Mínimo 2 opções |
+| Resposta correta | Cada questão deve ter 1 opção correta |
+
+### Fluxo de Publicação
+
+1. **Aula**: DRAFT → (passa no checklist) → READY → (publica) → PUBLISHED
+2. **Módulo**: Só publica se tiver ≥1 aula PUBLISHED
+3. **Curso**: Só publica se tiver ≥1 módulo PUBLISHED
+
+### Edit Lock (Prevenção de Conflitos)
+
+- Lock expira em 10 minutos
+- Wizard renova automaticamente a cada 5 minutos
+- Lock é liberado ao sair da página (via beforeunload)
+- Se outro usuário tem o lock, mostra mensagem com nome e hora de expiração
+
+### Como testar
+
+1. **Wizard de aula**:
+   - Acesse `/professor/cursos/[id]`
+   - Clique em "Wizard" em qualquer aula
+   - Navegue pelos 6 passos
+   - Preencha todos os campos obrigatórios
+   - Veja o checklist de readiness no último passo
+
+2. **Duplicar aula**:
+   - Na lista de aulas, clique em "Duplicar"
+   - A cópia aparece com título "Cópia de [título original]"
+
+3. **Criar em lote**:
+   - Clique em "+ Criar Aulas em Lote"
+   - Configure a quantidade (1-20)
+   - Clique em "Criar"
+
+4. **Publicar**:
+   - Complete o checklist de uma aula
+   - O status muda para READY (badge azul)
+   - Clique em "Publicar" na aula
+   - Depois publique o módulo
+   - Por fim, publique o curso
+
+### Endpoints da API (Bloco 16)
+
+| Método | Rota | Autenticação | Descrição |
+|--------|------|--------------|-----------|
+| GET | /lessons/:id/readiness | JWT | Verifica checklist |
+| POST | /lessons/:id/readiness | JWT (MANAGER+) | Recalcula readiness |
+| POST | /lessons/:id/publish | JWT (ADMIN/MANAGER) | Publica aula |
+| POST | /lessons/:id/duplicate | JWT (MANAGER+) | Duplica aula |
+| POST | /modules/:id/lessons/bulk | JWT (MANAGER+) | Cria aulas em lote |
+| GET | /lessons/:id/lock | JWT | Verifica lock |
+| POST | /lessons/:id/lock | JWT | Adquire lock |
+| DELETE | /lessons/:id/lock | JWT | Libera lock |
+| POST | /modules/:id/publish | JWT (ADMIN/MANAGER) | Publica módulo |
+| POST | /courses/:id/publish | JWT (ADMIN/MANAGER) | Publica curso |
+
+### Arquivos criados/modificados
+
+- `apps/api/prisma/schema.prisma` - READY status, LessonEditLock
+- `apps/api/src/lessons/lessons.service.ts` - getReadiness, publishLesson, duplicateLesson, lock
+- `apps/api/src/lessons/lessons.controller.ts` - Novos endpoints
+- `apps/api/src/modules/modules.service.ts` - publishModule
+- `apps/api/src/modules/modules.controller.ts` - Bulk create, publish
+- `apps/api/src/courses/courses.service.ts` - publishCourse
+- `apps/api/src/courses/courses.controller.ts` - Publish endpoint
+- `apps/web/src/app/professor/aulas/[id]/wizard/page.tsx` - Wizard de 6 passos
+- `apps/web/src/app/professor/cursos/[id]/page.tsx` - Botões de workflow

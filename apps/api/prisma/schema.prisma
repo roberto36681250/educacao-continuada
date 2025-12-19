@@ -200,6 +200,8 @@ model Lesson {
   status            ContentStatus @default(DRAFT)
   sortOrder         Int           @default(0)
   metadata          Json?         // Para rastreio de importação: { externalId, importBatchId }
+  readyAt           DateTime?     // Data em que a aula passou no checklist READY
+  readinessReport   Json?         // Último relatório de checklist { items, warnings, isReady }
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
 
@@ -209,8 +211,22 @@ model Lesson {
   tickets            Ticket[]
   lessonCompetencies LessonCompetency[]
   lastSeenBy         LessonLastSeen[]
+  editLock           LessonEditLock?
 
   @@map("lessons")
+}
+
+// Lock de edição para evitar conflitos
+model LessonEditLock {
+  id             String   @id @default(cuid())
+  lessonId       String   @unique
+  lockedByUserId String
+  lockedAt       DateTime @default(now())
+  expiresAt      DateTime
+
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@map("lesson_edit_locks")
 }
 
 // Registro de última aula acessada
@@ -229,6 +245,7 @@ model LessonLastSeen {
 
 enum ContentStatus {
   DRAFT
+  READY      // Lesson passou no checklist, pronta para publicar
   REVIEWED
   APPROVED
   PUBLISHED

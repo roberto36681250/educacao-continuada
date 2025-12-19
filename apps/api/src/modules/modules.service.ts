@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateModuleDto } from './dto/create-module.dto';
 import { UpdateModuleDto } from './dto/update-module.dto';
@@ -106,5 +106,51 @@ export class ModulesService {
         createdAt: true,
       },
     });
+  }
+
+  /**
+   * Publicar módulo
+   * Regra: deve ter ao menos 1 lesson PUBLISHED
+   */
+  async publishModule(moduleId: string, userId: string) {
+    const module = await this.prisma.module.findUnique({
+      where: { id: moduleId },
+      include: {
+        lessons: {
+          where: { status: ContentStatus.PUBLISHED },
+        },
+        course: true,
+      },
+    });
+
+    if (!module) {
+      throw new NotFoundException('Módulo não encontrado');
+    }
+
+    if (module.lessons.length === 0) {
+      throw new BadRequestException('Módulo deve ter ao menos uma aula publicada para ser publicado');
+    }
+
+    await this.prisma.module.update({
+      where: { id: moduleId },
+      data: { status: ContentStatus.PUBLISHED },
+    });
+
+    // Registrar auditoria
+    await this.prisma.auditLog.create({
+      data: {
+        userId,
+        action: 'MODULE_PUBLISHED',
+        entity: 'Module',
+        entityId: moduleId,
+        metadata: {
+          title: module.title,
+          courseId: module.courseId,
+          publishedLessonsCount: module.lessons.length,
+        },
+      },
+    });
+
+    return { success: true, message: 'Módulo publicado com sucesso' };
   }
 }

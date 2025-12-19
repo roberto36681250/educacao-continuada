@@ -41,6 +41,7 @@ interface UserData {
 
 const statusLabels: Record<string, { label: string; className: string }> = {
   DRAFT: { label: 'Rascunho', className: 'bg-gray-100 text-gray-800' },
+  READY: { label: 'Pronta', className: 'bg-blue-100 text-blue-800' },
   REVIEWED: { label: 'Revisado', className: 'bg-blue-100 text-blue-800' },
   APPROVED: { label: 'Aprovado', className: 'bg-yellow-100 text-yellow-800' },
   PUBLISHED: { label: 'Publicado', className: 'bg-green-100 text-green-800' },
@@ -88,6 +89,11 @@ export default function ProfessorCursoPage() {
 
   // States para módulos expandidos
   const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set());
+
+  // States para workflow editorial
+  const [duplicatingLesson, setDuplicatingLesson] = useState<string | null>(null);
+  const [bulkCreating, setBulkCreating] = useState<string | null>(null);
+  const [bulkCount, setBulkCount] = useState(5);
 
   useEffect(() => {
     async function loadData() {
@@ -262,6 +268,130 @@ export default function ProfessorCursoPage() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  // Funções de workflow editorial
+  const handleDuplicateLesson = async (lessonId: string, moduleId: string) => {
+    setError('');
+    setDuplicatingLesson(lessonId);
+    try {
+      const result = await api<{ id: string; title: string }>(`/lessons/${lessonId}/duplicate`, {
+        method: 'POST',
+        body: { targetModuleId: moduleId },
+      });
+      // Adicionar a aula duplicada à lista
+      setCourse((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          modules: prev.modules.map((m) =>
+            m.id === moduleId
+              ? { ...m, lessons: [...(m.lessons || []), result as unknown as Lesson] }
+              : m
+          ),
+        };
+      });
+      setSuccess('Aula duplicada com sucesso!');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao duplicar aula');
+    } finally {
+      setDuplicatingLesson(null);
+    }
+  };
+
+  const handleBulkCreate = async (moduleId: string) => {
+    setError('');
+    setBulkCreating(moduleId);
+    try {
+      const titles = Array.from({ length: bulkCount }, (_, i) => `Nova Aula ${i + 1}`);
+      const result = await api<{ created: number; lessons: Lesson[] }>(
+        `/modules/${moduleId}/lessons/bulk`,
+        {
+          method: 'POST',
+          body: { titles },
+        }
+      );
+      // Adicionar as aulas criadas à lista
+      setCourse((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          modules: prev.modules.map((m) =>
+            m.id === moduleId
+              ? { ...m, lessons: [...(m.lessons || []), ...result.lessons] }
+              : m
+          ),
+        };
+      });
+      setSuccess(`${result.created} aulas criadas com sucesso!`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao criar aulas em lote');
+    } finally {
+      setBulkCreating(null);
+    }
+  };
+
+  const handlePublishLesson = async (lessonId: string) => {
+    setError('');
+    setSubmitting(true);
+    try {
+      await api(`/lessons/${lessonId}/publish`, { method: 'POST' });
+      // Atualizar status da aula
+      setCourse((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          modules: prev.modules.map((m) => ({
+            ...m,
+            lessons: m.lessons?.map((l) =>
+              l.id === lessonId ? { ...l, status: 'PUBLISHED' } : l
+            ),
+          })),
+        };
+      });
+      setSuccess('Aula publicada com sucesso!');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao publicar aula');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handlePublishModule = async (moduleId: string) => {
+    setError('');
+    setSubmitting(true);
+    try {
+      await api(`/modules/${moduleId}/publish`, { method: 'POST' });
+      // Atualizar status do módulo
+      setCourse((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          modules: prev.modules.map((m) =>
+            m.id === moduleId ? { ...m, status: 'PUBLISHED' } : m
+          ),
+        };
+      });
+      setSuccess('Módulo publicado com sucesso!');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao publicar módulo');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handlePublishCourse = async () => {
+    setError('');
+    setSubmitting(true);
+    try {
+      await api(`/courses/${courseId}/publish`, { method: 'POST' });
+      setCourse((prev) => (prev ? { ...prev, status: 'PUBLISHED' } : prev));
+      setSuccess('Curso publicado com sucesso!');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao publicar curso');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   if (loading) {
     return (
       <main className="flex min-h-screen flex-col items-center justify-center p-6 bg-gray-50">
@@ -369,6 +499,16 @@ export default function ProfessorCursoPage() {
                   >
                     {statusLabels[course?.status || '']?.label || course?.status}
                   </span>
+                  {course?.status !== 'PUBLISHED' && (
+                    <button
+                      onClick={handlePublishCourse}
+                      disabled={submitting}
+                      className="bg-green-600 text-white py-1 px-3 rounded-md hover:bg-green-700 text-xs disabled:opacity-50"
+                      title="Publicar curso (requer módulo publicado)"
+                    >
+                      Publicar Curso
+                    </button>
+                  )}
                   <button
                     onClick={() => setEditingCourse(true)}
                     className="text-blue-600 hover:underline text-sm"
@@ -482,6 +622,19 @@ export default function ProfessorCursoPage() {
                         >
                           {statusLabels[module.status]?.label || module.status}
                         </span>
+                        {module.status !== 'PUBLISHED' && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handlePublishModule(module.id);
+                            }}
+                            disabled={submitting}
+                            className="bg-green-500 text-white py-0.5 px-2 rounded text-xs hover:bg-green-600 disabled:opacity-50"
+                            title="Publicar módulo (requer aula publicada)"
+                          >
+                            Publicar
+                          </button>
+                        )}
                       </div>
                       {module.description && (
                         <p className="text-gray-600 text-sm mt-1 ml-6">
@@ -588,12 +741,46 @@ export default function ProfessorCursoPage() {
                           </div>
                         </form>
                       ) : (
-                        <button
-                          onClick={() => setShowLessonForm(module.id)}
-                          className="mb-4 text-green-600 hover:underline text-sm"
-                        >
-                          + Nova Aula
-                        </button>
+                        <div className="flex gap-4 mb-4 flex-wrap items-center">
+                          <button
+                            onClick={() => setShowLessonForm(module.id)}
+                            className="text-green-600 hover:underline text-sm"
+                          >
+                            + Nova Aula
+                          </button>
+                          {bulkCreating === module.id ? (
+                            <div className="flex gap-2 items-center">
+                              <input
+                                type="number"
+                                value={bulkCount}
+                                onChange={(e) => setBulkCount(Math.max(1, Math.min(20, parseInt(e.target.value) || 1)))}
+                                className="w-16 px-2 py-1 border border-gray-300 rounded text-sm"
+                                min={1}
+                                max={20}
+                              />
+                              <button
+                                onClick={() => handleBulkCreate(module.id)}
+                                disabled={submitting}
+                                className="bg-blue-600 text-white py-1 px-3 rounded text-sm hover:bg-blue-700 disabled:opacity-50"
+                              >
+                                Criar
+                              </button>
+                              <button
+                                onClick={() => setBulkCreating(null)}
+                                className="text-gray-500 hover:text-gray-700 text-sm"
+                              >
+                                Cancelar
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => setBulkCreating(module.id)}
+                              className="text-blue-600 hover:underline text-sm"
+                            >
+                              + Criar Aulas em Lote
+                            </button>
+                          )}
+                        </div>
                       )}
 
                       {module.lessons && module.lessons.length > 0 ? (
@@ -624,7 +811,14 @@ export default function ProfessorCursoPage() {
                                   )}
                                 </div>
                               </div>
-                              <div className="flex gap-3">
+                              <div className="flex gap-2 items-center flex-wrap">
+                                <a
+                                  href={`/professor/aulas/${lesson.id}/wizard`}
+                                  className="bg-indigo-100 text-indigo-700 py-0.5 px-2 rounded text-xs hover:bg-indigo-200"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  Wizard
+                                </a>
                                 <a
                                   href={`/professor/aulas/${lesson.id}/quiz-editor`}
                                   className="text-purple-600 hover:underline text-sm"
@@ -632,12 +826,34 @@ export default function ProfessorCursoPage() {
                                 >
                                   Quiz
                                 </a>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDuplicateLesson(lesson.id, module.id);
+                                  }}
+                                  disabled={duplicatingLesson === lesson.id}
+                                  className="text-orange-600 hover:underline text-sm disabled:opacity-50"
+                                >
+                                  {duplicatingLesson === lesson.id ? 'Duplicando...' : 'Duplicar'}
+                                </button>
+                                {lesson.status === 'READY' && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handlePublishLesson(lesson.id);
+                                    }}
+                                    disabled={submitting}
+                                    className="bg-green-500 text-white py-0.5 px-2 rounded text-xs hover:bg-green-600 disabled:opacity-50"
+                                  >
+                                    Publicar
+                                  </button>
+                                )}
                                 <a
                                   href={`/aula/${lesson.id}`}
                                   className="text-blue-600 hover:underline text-sm"
                                   onClick={(e) => e.stopPropagation()}
                                 >
-                                  Ver aula
+                                  Ver
                                 </a>
                               </div>
                             </li>
