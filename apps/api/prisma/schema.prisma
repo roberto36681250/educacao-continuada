@@ -686,6 +686,8 @@ model AssignmentScope {
   scopeType    AssignmentScopeType
   profession   String?              // Required quando scopeType envolve profissão
   unitId       String?              // Required quando scopeType envolve unidade
+  hospitalId   String?              // Required para HOSPITAL_ALL
+  userIds      String[]             // Required para INDIVIDUAL (lista de user IDs)
   createdAt    DateTime             @default(now())
 
   assignment Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
@@ -694,9 +696,12 @@ model AssignmentScope {
 }
 
 enum AssignmentScopeType {
+  INSTITUTE_ALL         // Todos os usuários do instituto
   INSTITUTE_PROFESSION  // Profissão no Instituto inteiro
+  HOSPITAL_ALL          // Todos os usuários de um hospital
   UNIT_ALL              // Unidade inteira, multiprofissional
   UNIT_PROFESSION       // Profissão dentro de uma unidade
+  INDIVIDUAL            // Usuários específicos selecionados
 }
 
 model UserAssignmentStatus {

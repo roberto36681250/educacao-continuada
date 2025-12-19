@@ -49,6 +49,28 @@ export class AssignmentsService {
 
     // Validar scopes
     for (const scope of dto.scopes) {
+      // INSTITUTE_ALL: não precisa de campos adicionais
+      if (scope.scopeType === ScopeType.INSTITUTE_ALL) {
+        // Válido - aplica a todos os usuários do instituto
+      }
+
+      // HOSPITAL_ALL: requer hospitalId
+      if (scope.scopeType === ScopeType.HOSPITAL_ALL) {
+        if (!scope.hospitalId) {
+          throw new BadRequestException(
+            'hospitalId é obrigatório para scopeType HOSPITAL_ALL'
+          );
+        }
+        // Verificar se hospital existe e pertence ao instituto
+        const hospital = await this.prisma.hospital.findUnique({
+          where: { id: scope.hospitalId },
+        });
+        if (!hospital || hospital.instituteId !== instituteId) {
+          throw new BadRequestException('Hospital inválido ou não pertence ao instituto');
+        }
+      }
+
+      // UNIT_ALL e UNIT_PROFESSION: requerem unitId
       if (
         scope.scopeType === ScopeType.UNIT_ALL ||
         scope.scopeType === ScopeType.UNIT_PROFESSION
@@ -68,6 +90,7 @@ export class AssignmentsService {
         }
       }
 
+      // INSTITUTE_PROFESSION e UNIT_PROFESSION: requerem profession
       if (
         scope.scopeType === ScopeType.INSTITUTE_PROFESSION ||
         scope.scopeType === ScopeType.UNIT_PROFESSION
@@ -76,6 +99,27 @@ export class AssignmentsService {
           throw new BadRequestException(
             `profession é obrigatório para scopeType ${scope.scopeType}`
           );
+        }
+      }
+
+      // INDIVIDUAL: requer userIds
+      if (scope.scopeType === ScopeType.INDIVIDUAL) {
+        if (!scope.userIds || scope.userIds.length === 0) {
+          throw new BadRequestException(
+            'userIds é obrigatório para scopeType INDIVIDUAL'
+          );
+        }
+        // Verificar se todos os usuários existem e pertencem ao instituto
+        const users = await this.prisma.user.findMany({
+          where: { id: { in: scope.userIds } },
+          select: { id: true, instituteId: true },
+        });
+        if (users.length !== scope.userIds.length) {
+          throw new BadRequestException('Um ou mais usuários não encontrados');
+        }
+        const invalidUsers = users.filter((u) => u.instituteId !== instituteId);
+        if (invalidUsers.length > 0) {
+          throw new BadRequestException('Um ou mais usuários não pertencem ao instituto');
         }
       }
     }
@@ -93,7 +137,9 @@ export class AssignmentsService {
           create: dto.scopes.map((s) => ({
             scopeType: s.scopeType,
             unitId: s.unitId,
+            hospitalId: s.hospitalId,
             profession: s.profession,
+            userIds: s.userIds,
           })),
         },
       },
@@ -227,7 +273,7 @@ export class AssignmentsService {
             startAt: { lte: periodEnd },
             OR: [{ endAt: null }, { endAt: { gte: periodStart } }],
           },
-          select: { unitId: true, isPrimary: true, startAt: true },
+          select: { unitId: true, isPrimary: true, startAt: true, unit: { select: { hospitalId: true } } },
         },
       },
     });
@@ -238,8 +284,19 @@ export class AssignmentsService {
 
     for (const scope of assignment.scopes) {
       switch (scope.scopeType) {
+        case 'INSTITUTE_ALL':
+          // Todos os usuários do instituto
+          return true;
+
         case 'INSTITUTE_PROFESSION':
           if (user.profession === scope.profession) {
+            return true;
+          }
+          break;
+
+        case 'HOSPITAL_ALL':
+          // Todos os usuários de um hospital específico
+          if (user.unitAssignments.some((ua) => ua.unit?.hospitalId === scope.hospitalId)) {
             return true;
           }
           break;
@@ -255,6 +312,13 @@ export class AssignmentsService {
             user.profession === scope.profession &&
             user.unitAssignments.some((ua) => ua.unitId === scope.unitId)
           ) {
+            return true;
+          }
+          break;
+
+        case 'INDIVIDUAL':
+          // Usuários específicos selecionados
+          if (scope.userIds?.includes(userId)) {
             return true;
           }
           break;

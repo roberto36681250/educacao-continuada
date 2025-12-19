@@ -15,11 +15,24 @@ interface Unit {
   hospital: { id: string; name: string };
 }
 
+interface Hospital {
+  id: string;
+  name: string;
+}
+
+interface User {
+  id: string;
+  name: string;
+  profession: string;
+}
+
 interface Scope {
   id?: string;
-  scopeType: 'INSTITUTE_PROFESSION' | 'UNIT_ALL' | 'UNIT_PROFESSION';
+  scopeType: 'INSTITUTE_ALL' | 'INSTITUTE_PROFESSION' | 'HOSPITAL_ALL' | 'UNIT_ALL' | 'UNIT_PROFESSION' | 'INDIVIDUAL';
   unitId?: string;
+  hospitalId?: string;
   profession?: string;
+  userIds?: string[];
 }
 
 interface Assignment {
@@ -50,6 +63,8 @@ export default function GestorAtribuicoesPage() {
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
   const [units, setUnits] = useState<Unit[]>([]);
+  const [hospitals, setHospitals] = useState<Hospital[]>([]);
+  const [allUsers, setAllUsers] = useState<User[]>([]);
 
   // Form states
   const [showForm, setShowForm] = useState(false);
@@ -78,15 +93,19 @@ export default function GestorAtribuicoesPage() {
         return;
       }
 
-      const [assignmentsData, coursesData, unitsData] = await Promise.all([
+      const [assignmentsData, coursesData, unitsData, hospitalsData, usersData] = await Promise.all([
         api<Assignment[]>('/assignments'),
         api<Course[]>('/courses'),
         api<Unit[]>(`/units?instituteId=${userData.instituteId}`),
+        api<Hospital[]>(`/hospitals?instituteId=${userData.instituteId}`),
+        api<User[]>(`/users?instituteId=${userData.instituteId}`),
       ]);
 
       setAssignments(assignmentsData);
       setCourses(coursesData);
       setUnits(unitsData);
+      setHospitals(hospitalsData);
+      setAllUsers(usersData);
     } catch (err) {
       console.error(err);
     } finally {
@@ -102,9 +121,21 @@ export default function GestorAtribuicoesPage() {
     setScopes(scopes.filter((_, i) => i !== index));
   }
 
-  function updateScope(index: number, field: string, value: string) {
+  function updateScope(index: number, field: string, value: string | string[]) {
     const newScopes = [...scopes];
     (newScopes[index] as any)[field] = value;
+    setScopes(newScopes);
+  }
+
+  function toggleUserInScope(index: number, userId: string) {
+    const newScopes = [...scopes];
+    const scope = newScopes[index];
+    const currentUserIds = scope.userIds || [];
+    if (currentUserIds.includes(userId)) {
+      scope.userIds = currentUserIds.filter((id) => id !== userId);
+    } else {
+      scope.userIds = [...currentUserIds, userId];
+    }
     setScopes(newScopes);
   }
 
@@ -130,6 +161,14 @@ export default function GestorAtribuicoesPage() {
       }
       if (scope.scopeType === 'INSTITUTE_PROFESSION' && !scope.profession) {
         setError('Selecione uma profissão para o escopo "Profissão no Instituto"');
+        return;
+      }
+      if (scope.scopeType === 'HOSPITAL_ALL' && !scope.hospitalId) {
+        setError('Selecione um hospital para o escopo "Hospital Inteiro"');
+        return;
+      }
+      if (scope.scopeType === 'INDIVIDUAL' && (!scope.userIds || scope.userIds.length === 0)) {
+        setError('Selecione pelo menos um usuário para o escopo "Usuários Específicos"');
         return;
       }
     }
@@ -305,61 +344,116 @@ export default function GestorAtribuicoesPage() {
                 {scopes.length === 0 ? (
                   <p className="text-gray-500 text-sm">Nenhum escopo adicionado</p>
                 ) : (
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     {scopes.map((scope, index) => (
                       <div
                         key={index}
-                        className="flex gap-2 items-center bg-gray-50 p-3 rounded"
+                        className="bg-gray-50 p-3 rounded"
                       >
-                        <select
-                          value={scope.scopeType}
-                          onChange={(e) => updateScope(index, 'scopeType', e.target.value)}
-                          className="px-3 py-2 border rounded"
-                        >
-                          <option value="UNIT_ALL">Unidade Inteira</option>
-                          <option value="INSTITUTE_PROFESSION">Profissão no Instituto</option>
-                          <option value="UNIT_PROFESSION">Profissão na Unidade</option>
-                        </select>
-
-                        {(scope.scopeType === 'UNIT_ALL' ||
-                          scope.scopeType === 'UNIT_PROFESSION') && (
+                        <div className="flex gap-2 items-center flex-wrap">
                           <select
-                            value={scope.unitId || ''}
-                            onChange={(e) => updateScope(index, 'unitId', e.target.value)}
+                            value={scope.scopeType}
+                            onChange={(e) => updateScope(index, 'scopeType', e.target.value)}
                             className="px-3 py-2 border rounded"
                           >
-                            <option value="">Selecione a unidade</option>
-                            {units.map((u) => (
-                              <option key={u.id} value={u.id}>
-                                {u.name} ({u.hospital.name})
-                              </option>
-                            ))}
+                            <option value="INSTITUTE_ALL">Instituto Inteiro (todos)</option>
+                            <option value="INSTITUTE_PROFESSION">Profissão no Instituto</option>
+                            <option value="HOSPITAL_ALL">Hospital Inteiro</option>
+                            <option value="UNIT_ALL">Unidade Inteira</option>
+                            <option value="UNIT_PROFESSION">Profissão na Unidade</option>
+                            <option value="INDIVIDUAL">Usuários Específicos</option>
                           </select>
-                        )}
 
-                        {(scope.scopeType === 'INSTITUTE_PROFESSION' ||
-                          scope.scopeType === 'UNIT_PROFESSION') && (
-                          <select
-                            value={scope.profession || ''}
-                            onChange={(e) => updateScope(index, 'profession', e.target.value)}
-                            className="px-3 py-2 border rounded"
+                          {/* Hospital selector for HOSPITAL_ALL */}
+                          {scope.scopeType === 'HOSPITAL_ALL' && (
+                            <select
+                              value={scope.hospitalId || ''}
+                              onChange={(e) => updateScope(index, 'hospitalId', e.target.value)}
+                              className="px-3 py-2 border rounded"
+                            >
+                              <option value="">Selecione o hospital</option>
+                              {hospitals.map((h) => (
+                                <option key={h.id} value={h.id}>
+                                  {h.name}
+                                </option>
+                              ))}
+                            </select>
+                          )}
+
+                          {/* Unit selector for UNIT_ALL and UNIT_PROFESSION */}
+                          {(scope.scopeType === 'UNIT_ALL' ||
+                            scope.scopeType === 'UNIT_PROFESSION') && (
+                            <select
+                              value={scope.unitId || ''}
+                              onChange={(e) => updateScope(index, 'unitId', e.target.value)}
+                              className="px-3 py-2 border rounded"
+                            >
+                              <option value="">Selecione a unidade</option>
+                              {units.map((u) => (
+                                <option key={u.id} value={u.id}>
+                                  {u.name} ({u.hospital.name})
+                                </option>
+                              ))}
+                            </select>
+                          )}
+
+                          {/* Profession selector for profession-based scopes */}
+                          {(scope.scopeType === 'INSTITUTE_PROFESSION' ||
+                            scope.scopeType === 'UNIT_PROFESSION') && (
+                            <select
+                              value={scope.profession || ''}
+                              onChange={(e) => updateScope(index, 'profession', e.target.value)}
+                              className="px-3 py-2 border rounded"
+                            >
+                              <option value="">Selecione a profissão</option>
+                              {PROFESSIONS.map((p) => (
+                                <option key={p} value={p}>
+                                  {p}
+                                </option>
+                              ))}
+                            </select>
+                          )}
+
+                          <button
+                            type="button"
+                            onClick={() => removeScope(index)}
+                            className="text-red-600 hover:text-red-800 ml-auto"
                           >
-                            <option value="">Selecione a profissão</option>
-                            {PROFESSIONS.map((p) => (
-                              <option key={p} value={p}>
-                                {p}
-                              </option>
-                            ))}
-                          </select>
-                        )}
+                            ×
+                          </button>
+                        </div>
 
-                        <button
-                          type="button"
-                          onClick={() => removeScope(index)}
-                          className="text-red-600 hover:text-red-800"
-                        >
-                          ×
-                        </button>
+                        {/* User selector for INDIVIDUAL scope */}
+                        {scope.scopeType === 'INDIVIDUAL' && (
+                          <div className="mt-3">
+                            <p className="text-sm text-gray-600 mb-2">
+                              Selecione os usuários ({scope.userIds?.length || 0} selecionados):
+                            </p>
+                            <div className="max-h-40 overflow-y-auto border rounded p-2 bg-white">
+                              {allUsers.length === 0 ? (
+                                <p className="text-gray-500 text-sm">Nenhum usuário encontrado</p>
+                              ) : (
+                                <div className="space-y-1">
+                                  {allUsers.map((u) => (
+                                    <label
+                                      key={u.id}
+                                      className="flex items-center gap-2 hover:bg-gray-50 p-1 rounded cursor-pointer"
+                                    >
+                                      <input
+                                        type="checkbox"
+                                        checked={scope.userIds?.includes(u.id) || false}
+                                        onChange={() => toggleUserInScope(index, u.id)}
+                                        className="rounded"
+                                      />
+                                      <span className="text-sm">{u.name}</span>
+                                      <span className="text-xs text-gray-500">({u.profession})</span>
+                                    </label>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -442,22 +536,46 @@ export default function GestorAtribuicoesPage() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex flex-wrap gap-1">
-                          {a.scopes.map((s, i) => (
-                            <span
-                              key={i}
-                              className={`text-xs px-2 py-1 rounded ${
-                                s.scopeType === 'UNIT_ALL'
-                                  ? 'bg-blue-100 text-blue-800'
-                                  : s.scopeType === 'INSTITUTE_PROFESSION'
-                                  ? 'bg-purple-100 text-purple-800'
-                                  : 'bg-green-100 text-green-800'
-                              }`}
-                            >
-                              {s.scopeType === 'UNIT_ALL' && 'Unidade'}
-                              {s.scopeType === 'INSTITUTE_PROFESSION' && s.profession}
-                              {s.scopeType === 'UNIT_PROFESSION' && `${s.profession}`}
-                            </span>
-                          ))}
+                          {a.scopes.map((s, i) => {
+                            let colorClass = 'bg-gray-100 text-gray-800';
+                            let label = '';
+
+                            switch (s.scopeType) {
+                              case 'INSTITUTE_ALL':
+                                colorClass = 'bg-red-100 text-red-800';
+                                label = 'Todos';
+                                break;
+                              case 'INSTITUTE_PROFESSION':
+                                colorClass = 'bg-purple-100 text-purple-800';
+                                label = s.profession || 'Profissão';
+                                break;
+                              case 'HOSPITAL_ALL':
+                                colorClass = 'bg-orange-100 text-orange-800';
+                                label = `Hospital: ${hospitals.find((h) => h.id === s.hospitalId)?.name || 'Hospital'}`;
+                                break;
+                              case 'UNIT_ALL':
+                                colorClass = 'bg-blue-100 text-blue-800';
+                                label = `Unidade: ${units.find((u) => u.id === s.unitId)?.name || 'Unidade'}`;
+                                break;
+                              case 'UNIT_PROFESSION':
+                                colorClass = 'bg-green-100 text-green-800';
+                                label = `${s.profession}`;
+                                break;
+                              case 'INDIVIDUAL':
+                                colorClass = 'bg-yellow-100 text-yellow-800';
+                                label = `${s.userIds?.length || 0} usuários`;
+                                break;
+                            }
+
+                            return (
+                              <span
+                                key={i}
+                                className={`text-xs px-2 py-1 rounded ${colorClass}`}
+                              >
+                                {label}
+                              </span>
+                            );
+                          })}
                         </div>
                       </td>
                       <td className="px-4 py-3">

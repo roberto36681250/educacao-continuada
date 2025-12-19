@@ -14,4 +14,16 @@ export class InstitutesService {
       orderBy: { name: 'asc' },
     });
   }
+
+  async findUsersByInstitute(instituteId: string) {
+    return this.prisma.user.findMany({
+      where: { instituteId },
+      select: {
+        id: true,
+        name: true,
+        profession: true,
+      },
+      orderBy: { name: 'asc' },
+    });
+  }
 }
